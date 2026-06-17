@@ -1,0 +1,295 @@
+import { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import {
+  getCreatorProfile,
+  getAssessmentsForProfile,
+  getReportsForProfile,
+  getNotesForProfile,
+  getStatusEventsForProfile,
+  addCreatorNote,
+  updateCreatorStatus,
+} from '@/lib/creators-api';
+import type { CreatorProfile, CreatorAssessment, CreatorReport, CreatorNote, CreatorStatusEvent } from '@/types/creator';
+
+const STATUS_LABELS: Record<string, string> = {
+  prospect: 'Prospect',
+  assessed: 'Assessed',
+  qualified: 'Qualified',
+  interviewed: 'Interviewed',
+  accepted: 'Accepted',
+  onboarding: 'Onboarding',
+  active: 'Active',
+  paused: 'Paused',
+  offboarded: 'Offboarded',
+};
+
+const NEXT_STATUS: Record<string, { next: string; event: string; label: string }[]> = {
+  prospect: [
+    { next: 'assessed', event: 'assessment_reviewed', label: 'Mark Assessed' },
+  ],
+  assessed: [
+    { next: 'qualified', event: 'qualified', label: 'Qualify' },
+  ],
+  qualified: [
+    { next: 'interviewed', event: 'interviewed', label: 'Interviewed' },
+  ],
+  interviewed: [
+    { next: 'accepted', event: 'accepted', label: 'Accept' },
+  ],
+  accepted: [
+    { next: 'onboarding', event: 'onboarding_started', label: 'Start Onboarding' },
+  ],
+  onboarding: [
+    { next: 'active', event: 'activated', label: 'Activate' },
+  ],
+  active: [
+    { next: 'paused', event: 'paused', label: 'Pause' },
+  ],
+  paused: [
+    { next: 'active', event: 'reactivated', label: 'Reactivate' },
+  ],
+  offboarded: [],
+};
+
+export function CreatorProfileView() {
+  const { profileId } = useParams<{ profileId: string }>();
+  const navigate = useNavigate();
+  const [profile, setProfile] = useState<CreatorProfile | null>(null);
+  const [assessments, setAssessments] = useState<CreatorAssessment[]>([]);
+  const [reports, setReports] = useState<CreatorReport[]>([]);
+  const [notes, setNotes] = useState<CreatorNote[]>([]);
+  const [events, setEvents] = useState<CreatorStatusEvent[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [noteText, setNoteText] = useState('');
+  const [statusLoading, setStatusLoading] = useState('');
+
+  useEffect(() => {
+    if (!profileId) return;
+    Promise.all([
+      getCreatorProfile(profileId),
+      getAssessmentsForProfile(profileId),
+      getReportsForProfile(profileId),
+      getNotesForProfile(profileId),
+      getStatusEventsForProfile(profileId),
+    ]).then(([p, a, r, n, e]) => {
+      setProfile(p);
+      setAssessments(a);
+      setReports(r);
+      setNotes(n);
+      setEvents(e);
+      setLoading(false);
+    });
+  }, [profileId]);
+
+  const handleAddNote = async () => {
+    if (!profileId || !noteText.trim()) return;
+    const note = await addCreatorNote(profileId, noteText.trim());
+    if (note) {
+      setNotes(prev => [note, ...prev]);
+      setNoteText('');
+    }
+  };
+
+  const handleStatusChange = async (next: string, event: string) => {
+    if (!profileId) return;
+    setStatusLoading(event);
+    await updateCreatorStatus(profileId, next, event);
+    setProfile(prev => prev ? { ...prev, status: next } : prev);
+    setEvents(prev => [
+      {
+        id: crypto.randomUUID(),
+        creator_profile_id: profileId,
+        created_at: new Date().toISOString(),
+        event_type: event,
+        details: {},
+      },
+      ...prev,
+    ]);
+    setStatusLoading('');
+  };
+
+  if (loading) return <div className="animate-pulse text-gray-500 p-4">Loading profile...</div>;
+  if (!profile) return <div className="text-gray-500 p-4">Creator not found.</div>;
+
+  return (
+    <div className="space-y-8">
+      {/* Header */}
+      <div>
+        <button onClick={() => navigate('/cockpit/creators')} className="text-xs text-gray-500 hover:text-gray-300 mb-2 inline-block">← Back to pipeline</button>
+        <div className="flex items-start justify-between flex-wrap gap-4">
+          <div>
+            <h1 className="font-display text-2xl font-bold">{profile.full_name}</h1>
+            <p className="text-gray-500 text-sm">{profile.email} · {profile.country}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="px-3 py-1 rounded-full text-xs font-semibold bg-surface-3 text-gray-300 capitalize">
+              {profile.status}
+            </span>
+            <span className="px-3 py-1 rounded-full text-xs font-semibold bg-accent/20 text-accent">
+              {profile.management_readiness ?? '—'}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Left: Details */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Scores */}
+          <div className="bg-surface border border-gray-800 rounded-xl p-5">
+            <h2 className="font-display font-semibold text-lg mb-4">Scores</h2>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+              {[
+                ['Creator DNA', profile.creator_dna_score],
+                ['Brand Clarity', profile.brand_clarity_score],
+                ['Monetisation', profile.monetisation_score],
+                ['Consistency', profile.consistency_score],
+                ['Agency Opp.', profile.agency_opportunity_score],
+              ].map(([label, score]) => (
+                <div key={label} className="bg-surface-2 rounded-lg p-3 text-center">
+                  <div className={`text-2xl font-bold ${(score ?? 0) >= 60 ? 'text-success' : (score ?? 0) >= 40 ? 'text-warn' : 'text-pink'}`}>{score ?? '—'}</div>
+                  <div className="text-xs text-gray-500 mt-1">{label}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Top Verticals */}
+          {profile.top_vertical_1 && (
+            <div className="bg-surface border border-gray-800 rounded-xl p-5">
+              <h2 className="font-display font-semibold text-lg mb-3">Top Content Verticals</h2>
+              <div className="flex flex-wrap gap-2">
+                {[profile.top_vertical_1, profile.top_vertical_2, profile.top_vertical_3].filter(Boolean).map((v, i) => (
+                  <span key={v} className="px-3 py-1.5 rounded-full text-sm bg-surface-3 text-gray-300">
+                    {i + 1}. {v}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Reports */}
+          <div className="bg-surface border border-gray-800 rounded-xl p-5">
+            <h2 className="font-display font-semibold text-lg mb-3">Reports ({reports.length})</h2>
+            {reports.length === 0 ? (
+              <p className="text-sm text-gray-600">No reports yet.</p>
+            ) : (
+              <div className="space-y-2">
+                {reports.map(r => (
+                  <a
+                    key={r.id}
+                    href={`/report/${r.report_slug}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block bg-surface-2 rounded-lg px-4 py-3 hover:bg-surface-3 transition-colors"
+                  >
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-200">Report v{r.version}</span>
+                      <span className="text-xs text-gray-500">{new Date(r.created_at!).toLocaleDateString()}</span>
+                    </div>
+                  </a>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Assessments */}
+          <div className="bg-surface border border-gray-800 rounded-xl p-5">
+            <h2 className="font-display font-semibold text-lg mb-3">Assessment History ({assessments.length})</h2>
+            {assessments.length === 0 ? (
+              <p className="text-sm text-gray-600">No assessments yet.</p>
+            ) : (
+              <div className="space-y-2">
+                {assessments.map(a => (
+                  <div key={a.id} className="bg-surface-2 rounded-lg px-4 py-3">
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-300">Score: {a.agency_opportunity_score ?? '—'}</span>
+                      <span className="text-xs text-gray-500">{new Date(a.created_at!).toLocaleDateString()}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Right: Actions */}
+        <div className="space-y-6">
+          {/* Status Transitions */}
+          <div className="bg-surface border border-gray-800 rounded-xl p-5">
+            <h2 className="font-display font-semibold text-lg mb-3">Actions</h2>
+            <div className="space-y-2">
+              {(NEXT_STATUS[profile.status] ?? []).map(({ next, event, label }) => (
+                <button
+                  key={event}
+                  onClick={() => handleStatusChange(next, event)}
+                  disabled={statusLoading === event}
+                  className="w-full px-4 py-2 rounded-lg bg-accent/10 border border-accent/30 text-accent hover:bg-accent/20 text-sm font-medium transition-colors disabled:opacity-50"
+                >
+                  {statusLoading === event ? '...' : label}
+                </button>
+              ))}
+              {profile.status !== 'offboarded' && (
+                <button
+                  onClick={() => handleStatusChange('offboarded', 'offboarded')}
+                  disabled={statusLoading === 'offboarded'}
+                  className="w-full px-4 py-2 rounded-lg bg-pink/10 border border-pink/30 text-pink hover:bg-pink/20 text-sm font-medium transition-colors disabled:opacity-50"
+                >
+                  Offboard
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Notes */}
+          <div className="bg-surface border border-gray-800 rounded-xl p-5">
+            <h2 className="font-display font-semibold text-lg mb-3">Agency Notes</h2>
+            <div className="space-y-2 mb-4 max-h-64 overflow-y-auto">
+              {notes.length === 0 && <p className="text-sm text-gray-600">No notes yet.</p>}
+              {notes.map(n => (
+                <div key={n.id} className="bg-surface-2 rounded-lg px-3 py-2">
+                  <p className="text-sm text-gray-300">{n.note}</p>
+                  <p className="text-xs text-gray-600 mt-1">{new Date(n.created_at!).toLocaleString()}</p>
+                </div>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={noteText}
+                onChange={e => setNoteText(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleAddNote()}
+                placeholder="Add a note..."
+                className="flex-1 bg-surface-2 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:border-accent"
+              />
+              <button
+                onClick={handleAddNote}
+                disabled={!noteText.trim()}
+                className="px-3 py-2 rounded-lg bg-accent text-gray-950 text-sm font-semibold disabled:opacity-40"
+              >
+                Add
+              </button>
+            </div>
+          </div>
+
+          {/* Timeline */}
+          <div className="bg-surface border border-gray-800 rounded-xl p-5">
+            <h2 className="font-display font-semibold text-lg mb-3">Timeline</h2>
+            <div className="space-y-3">
+              {events.length === 0 && <p className="text-sm text-gray-600">No events yet.</p>}
+              {events.map(e => (
+                <div key={e.id} className="flex gap-3">
+                  <div className="w-1.5 h-1.5 rounded-full bg-accent mt-2 shrink-0" />
+                  <div>
+                    <p className="text-xs text-gray-400 capitalize">{e.event_type.replace(/_/g, ' ')}</p>
+                    <p className="text-xs text-gray-600">{new Date(e.created_at!).toLocaleString()}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
