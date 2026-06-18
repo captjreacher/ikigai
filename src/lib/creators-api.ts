@@ -18,6 +18,10 @@ export async function submitAssessment(responses: AssessmentResponses): Promise<
   report: CreatorReport;
 }> {
   // 1. Score the assessment
+  if (responses.audience_target === null) {
+    throw new Error('Audience target is required');
+  }
+
   const result = scoreAssessment(responses);
   const slug = generateReportSlug(responses.full_name);
 
@@ -28,7 +32,6 @@ export async function submitAssessment(responses: AssessmentResponses): Promise<
       full_name: responses.full_name,
       email: responses.email,
       country: responses.country,
-      creator_stage: 'prospect',
       status: 'prospect',
       archetype: result.archetype,
       creator_dna_score: result.scores.creator_dna,
@@ -42,6 +45,8 @@ export async function submitAssessment(responses: AssessmentResponses): Promise<
       top_vertical_1: result.top_verticals[0]?.name ?? null,
       top_vertical_2: result.top_verticals[1]?.name ?? null,
       top_vertical_3: result.top_verticals[2]?.name ?? null,
+      consent_to_contact: responses.consent,
+      consent_at: responses.consent ? new Date().toISOString() : null,
     })
     .select()
     .single();

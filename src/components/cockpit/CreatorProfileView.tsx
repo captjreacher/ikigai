@@ -9,9 +9,9 @@ import {
   addCreatorNote,
   updateCreatorStatus,
 } from '@/lib/creators-api';
-import type { CreatorProfile, CreatorAssessment, CreatorReport, CreatorNote, CreatorStatusEvent } from '@/types/creator';
+import type { CreatorProfile, CreatorAssessment, CreatorReport, CreatorNote, CreatorStatusEvent, CreatorStatus } from '@/types/creator';
 
-const STATUS_LABELS: Record<string, string> = {
+const STATUS_LABELS: Record<CreatorStatus, string> = {
   prospect: 'Prospect',
   assessed: 'Assessed',
   qualified: 'Qualified',
@@ -23,7 +23,7 @@ const STATUS_LABELS: Record<string, string> = {
   offboarded: 'Offboarded',
 };
 
-const NEXT_STATUS: Record<string, { next: string; event: string; label: string }[]> = {
+const NEXT_STATUS: Record<CreatorStatus, { next: CreatorStatus; event: string; label: string }[]> = {
   prospect: [
     { next: 'assessed', event: 'assessment_reviewed', label: 'Mark Assessed' },
   ],
@@ -90,7 +90,7 @@ export function CreatorProfileView() {
     }
   };
 
-  const handleStatusChange = async (next: string, event: string) => {
+  const handleStatusChange = async (next: CreatorStatus, event: string) => {
     if (!profileId) return;
     setStatusLoading(event);
     await updateCreatorStatus(profileId, next, event);
@@ -110,6 +110,14 @@ export function CreatorProfileView() {
 
   if (loading) return <div className="animate-pulse text-gray-500 p-4">Loading profile...</div>;
   if (!profile) return <div className="text-gray-500 p-4">Creator not found.</div>;
+
+  const scoreCards: Array<[string, number]> = [
+    ['Creator DNA', profile.creator_dna_score],
+    ['Brand Clarity', profile.brand_clarity_score],
+    ['Monetisation', profile.monetisation_score],
+    ['Consistency', profile.consistency_score],
+    ['Agency Opportunity', profile.agency_opportunity_score],
+  ];
 
   return (
     <div className="space-y-8">
@@ -139,15 +147,9 @@ export function CreatorProfileView() {
           <div className="bg-surface border border-gray-800 rounded-xl p-5">
             <h2 className="font-display font-semibold text-lg mb-4">Scores</h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-              {[
-                ['Creator DNA', profile.creator_dna_score],
-                ['Brand Clarity', profile.brand_clarity_score],
-                ['Monetisation', profile.monetisation_score],
-                ['Consistency', profile.consistency_score],
-                ['Agency Opp.', profile.agency_opportunity_score],
-              ].map(([label, score]) => (
+              {scoreCards.map(([label, score]) => (
                 <div key={label} className="bg-surface-2 rounded-lg p-3 text-center">
-                  <div className={`text-2xl font-bold ${(score ?? 0) >= 60 ? 'text-success' : (score ?? 0) >= 40 ? 'text-warn' : 'text-pink'}`}>{score ?? '—'}</div>
+                  <div className={`text-2xl font-bold ${score >= 60 ? 'text-success' : score >= 40 ? 'text-warn' : 'text-pink'}`}>{score}</div>
                   <div className="text-xs text-gray-500 mt-1">{label}</div>
                 </div>
               ))}
@@ -203,7 +205,7 @@ export function CreatorProfileView() {
                 {assessments.map(a => (
                   <div key={a.id} className="bg-surface-2 rounded-lg px-4 py-3">
                     <div className="flex justify-between">
-                      <span className="text-sm text-gray-300">Score: {a.agency_opportunity_score ?? '—'}</span>
+                      <span className="text-sm text-gray-300">Score: {a.agency_opportunity_score ?? '-'}</span>
                       <span className="text-xs text-gray-500">{new Date(a.created_at!).toLocaleDateString()}</span>
                     </div>
                   </div>

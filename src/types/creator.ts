@@ -37,7 +37,6 @@ export interface CreatorProfile {
   full_name: string;
   email: string;
   country: string;
-  creator_stage: string;
   status: CreatorStatus;
   archetype: string;
   creator_dna_score: number;
@@ -54,7 +53,8 @@ export interface CreatorProfile {
   latest_assessment_id: string | null;
   latest_report_id: string | null;
   ofmanager_creator_id: string | null;
-  notes: string | null;
+  consent_to_contact: boolean;
+  consent_at: string | null;
 }
 
 // ── Assessment ──
@@ -67,7 +67,7 @@ export interface AssessmentResponses {
   fantasy_keywords: string;
   nudity_level: string;
   niche_interests: string[];
-  audience_target: AudienceStrategy;
+  audience_target: AudienceStrategy | null;
   full_name: string;
   email: string;
   country: string;

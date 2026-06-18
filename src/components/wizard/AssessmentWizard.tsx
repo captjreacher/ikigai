@@ -14,7 +14,7 @@ const INITIAL: AssessmentResponses = {
   fantasy_keywords: '',
   nudity_level: '',
   niche_interests: [],
-  audience_target: 'masses',
+  audience_target: null,
   full_name: '',
   email: '',
   country: '',
@@ -58,7 +58,7 @@ export function AssessmentWizard() {
       case 0: return data.strengths.length > 0;
       case 1: return data.persona_occupation !== '';
       case 2: return data.nudity_level !== '';
-      case 3: return data.audience_target !== '';
+      case 3: return data.audience_target !== null;
       case 4: return data.full_name !== '' && data.email !== '' && data.country !== '' && data.consent;
       default: return true;
     }
