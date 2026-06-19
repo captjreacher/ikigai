@@ -353,6 +353,17 @@ export function AssessmentTemplates() {
                   </div>
                   <div className="flex items-center gap-1">
                     <button
+                      onClick={() => {
+                        setEditingQuestion(question);
+                        setForm(toForm(question));
+                      }}
+                      disabled={saving || !question.is_active}
+                      className="px-2 py-1 rounded border border-gray-700 text-gray-300 text-sm hover:border-gray-500 disabled:opacity-30"
+                      title={QUESTION_LIFECYCLE_TOOLTIP}
+                    >
+                      Edit Question
+                    </button>
+                    <button
                       onClick={() => handleMove(question, -1)}
                       disabled={saving || !question.is_included}
                       className="px-2 py-1 rounded border border-gray-700 text-gray-400 text-sm disabled:opacity-30"
