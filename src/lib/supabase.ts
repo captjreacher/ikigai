@@ -10,7 +10,12 @@ if (!supabaseUrl || !supabaseAnonKey) {
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export async function signInWithOTP(email: string) {
-  return supabase.auth.signInWithOtp({ email });
+  return supabase.auth.signInWithOtp({
+  email,
+  options: {
+    emailRedirectTo: `${window.location.origin}/#/cockpit/`,
+  },
+});
 }
 
 export async function signOut() {
