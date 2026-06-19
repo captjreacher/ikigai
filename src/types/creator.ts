@@ -157,6 +157,29 @@ export interface CreatorAssessment {
   agency_opportunity_score: number;
 }
 
+export type AuthenticityBand = 'High Authenticity' | 'Moderate Authenticity' | 'Potential Conflict';
+export type MonetisationReadiness = 'Low' | 'Developing' | 'Ready' | 'Advanced';
+export type AgencyOpportunityBand = 'High Priority' | 'Qualified' | 'Needs Development' | 'Not Suitable Yet';
+
+export interface CreatorDnaProfile {
+  id: string;
+  creator_profile_id: string;
+  assessment_id: string;
+  creator_dna_primary: string;
+  creator_dna_secondary: string;
+  confidence: number;
+  fantasy_archetype: string;
+  archetype_confidence: number;
+  authenticity_band: AuthenticityBand;
+  authenticity_flags: string[];
+  growth_constraints: string[];
+  monetisation_readiness: MonetisationReadiness;
+  agency_opportunity_score: number;
+  agency_opportunity_band: AgencyOpportunityBand;
+  summary: string;
+  created_at: string;
+}
+
 // ── Report ──
 export interface ReportData {
   archetype: string;
@@ -178,6 +201,7 @@ export interface ReportData {
   tech_stack: { tool: string; purpose: string }[];
   management_readiness: ManagementReadiness;
   day_90_plan: { phase: string; focus: string; actions: string[] }[];
+  creator_dna_profile?: Omit<CreatorDnaProfile, 'id' | 'created_at'>;
 }
 
 export interface CreatorReport {

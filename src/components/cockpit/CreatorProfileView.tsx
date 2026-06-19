@@ -3,13 +3,14 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
   getCreatorProfile,
   getAssessmentsForProfile,
+  getCreatorDnaProfilesForProfile,
   getReportsForProfile,
   getNotesForProfile,
   getStatusEventsForProfile,
   addCreatorNote,
   updateCreatorStatus,
 } from '@/lib/creators-api';
-import type { CreatorProfile, CreatorAssessment, CreatorReport, CreatorNote, CreatorStatusEvent, CreatorStatus } from '@/types/creator';
+import type { CreatorProfile, CreatorAssessment, CreatorDnaProfile, CreatorReport, CreatorNote, CreatorStatusEvent, CreatorStatus } from '@/types/creator';
 
 const STATUS_LABELS: Record<CreatorStatus, string> = {
   prospect: 'Prospect',
@@ -56,6 +57,7 @@ export function CreatorProfileView() {
   const navigate = useNavigate();
   const [profile, setProfile] = useState<CreatorProfile | null>(null);
   const [assessments, setAssessments] = useState<CreatorAssessment[]>([]);
+  const [dnaProfiles, setDnaProfiles] = useState<CreatorDnaProfile[]>([]);
   const [reports, setReports] = useState<CreatorReport[]>([]);
   const [notes, setNotes] = useState<CreatorNote[]>([]);
   const [events, setEvents] = useState<CreatorStatusEvent[]>([]);
@@ -68,12 +70,14 @@ export function CreatorProfileView() {
     Promise.all([
       getCreatorProfile(profileId),
       getAssessmentsForProfile(profileId),
+      getCreatorDnaProfilesForProfile(profileId),
       getReportsForProfile(profileId),
       getNotesForProfile(profileId),
       getStatusEventsForProfile(profileId),
-    ]).then(([p, a, r, n, e]) => {
+    ]).then(([p, a, d, r, n, e]) => {
       setProfile(p);
       setAssessments(a);
+      setDnaProfiles(d);
       setReports(r);
       setNotes(n);
       setEvents(e);
@@ -118,6 +122,7 @@ export function CreatorProfileView() {
     ['Consistency', profile.consistency_score],
     ['Agency Opportunity', profile.agency_opportunity_score],
   ];
+  const latestDna = dnaProfiles[0];
 
   return (
     <div className="space-y-8">
@@ -154,6 +159,79 @@ export function CreatorProfileView() {
                 </div>
               ))}
             </div>
+          </div>
+
+          {/* Creator DNA */}
+          <div className="bg-surface border border-gray-800 rounded-xl p-5">
+            <div className="flex items-center justify-between gap-3 mb-4">
+              <h2 className="font-display font-semibold text-lg">Creator DNA</h2>
+              {latestDna && (
+                <span className="px-3 py-1 rounded-full text-xs font-semibold bg-accent/20 text-accent">
+                  {latestDna.agency_opportunity_band}
+                </span>
+              )}
+            </div>
+            {!latestDna ? (
+              <p className="text-sm text-gray-600">No DNA profile generated yet.</p>
+            ) : (
+              <div className="space-y-5">
+                <p className="text-sm text-gray-300">{latestDna.summary}</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="bg-surface-2 rounded-lg p-3">
+                    <div className="text-xs text-gray-500 mb-1">DNA</div>
+                    <div className="text-sm font-semibold text-gray-100">{latestDna.creator_dna_primary}</div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      Secondary: {latestDna.creator_dna_secondary} · {latestDna.confidence}% confidence
+                    </div>
+                  </div>
+                  <div className="bg-surface-2 rounded-lg p-3">
+                    <div className="text-xs text-gray-500 mb-1">Archetype</div>
+                    <div className="text-sm font-semibold text-gray-100">{latestDna.fantasy_archetype}</div>
+                    <div className="text-xs text-gray-500 mt-1">{latestDna.archetype_confidence}% confidence</div>
+                  </div>
+                  <div className="bg-surface-2 rounded-lg p-3">
+                    <div className="text-xs text-gray-500 mb-1">Authenticity</div>
+                    <div className={`text-sm font-semibold ${
+                      latestDna.authenticity_band === 'High Authenticity'
+                        ? 'text-success'
+                        : latestDna.authenticity_band === 'Moderate Authenticity'
+                          ? 'text-warn'
+                          : 'text-pink'
+                    }`}>
+                      {latestDna.authenticity_band}
+                    </div>
+                  </div>
+                  <div className="bg-surface-2 rounded-lg p-3">
+                    <div className="text-xs text-gray-500 mb-1">Monetisation Readiness</div>
+                    <div className="text-sm font-semibold text-gray-100">{latestDna.monetisation_readiness}</div>
+                  </div>
+                  <div className="bg-surface-2 rounded-lg p-3">
+                    <div className="text-xs text-gray-500 mb-1">Agency Opportunity</div>
+                    <div className="text-sm font-semibold text-gray-100">{latestDna.agency_opportunity_score}/100</div>
+                  </div>
+                  <div className="bg-surface-2 rounded-lg p-3">
+                    <div className="text-xs text-gray-500 mb-2">Growth Constraints</div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {latestDna.growth_constraints.map(constraint => (
+                        <span key={constraint} className="px-2 py-1 rounded-full bg-surface-3 text-xs text-gray-300">
+                          {constraint}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                {latestDna.authenticity_flags.length > 0 && (
+                  <div className="border border-warn/30 bg-warn/10 rounded-lg p-3">
+                    <div className="text-xs font-semibold text-warn mb-2">Inconsistency Flags</div>
+                    <ul className="space-y-1">
+                      {latestDna.authenticity_flags.map(flag => (
+                        <li key={flag} className="text-xs text-gray-300">{flag}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Top Verticals */}

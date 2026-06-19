@@ -1332,6 +1332,78 @@ export type Database = {
           },
         ]
       }
+      creator_dna_profiles: {
+        Row: {
+          agency_opportunity_band: string
+          agency_opportunity_score: number
+          archetype_confidence: number
+          assessment_id: string
+          authenticity_band: string
+          authenticity_flags: Json
+          confidence: number
+          created_at: string
+          creator_dna_primary: string
+          creator_dna_secondary: string
+          creator_profile_id: string
+          fantasy_archetype: string
+          growth_constraints: Json
+          id: string
+          monetisation_readiness: string
+          summary: string
+        }
+        Insert: {
+          agency_opportunity_band: string
+          agency_opportunity_score: number
+          archetype_confidence: number
+          assessment_id: string
+          authenticity_band: string
+          authenticity_flags?: Json
+          confidence: number
+          created_at?: string
+          creator_dna_primary: string
+          creator_dna_secondary: string
+          creator_profile_id: string
+          fantasy_archetype: string
+          growth_constraints?: Json
+          id?: string
+          monetisation_readiness: string
+          summary: string
+        }
+        Update: {
+          agency_opportunity_band?: string
+          agency_opportunity_score?: number
+          archetype_confidence?: number
+          assessment_id?: string
+          authenticity_band?: string
+          authenticity_flags?: Json
+          confidence?: number
+          created_at?: string
+          creator_dna_primary?: string
+          creator_dna_secondary?: string
+          creator_profile_id?: string
+          fantasy_archetype?: string
+          growth_constraints?: Json
+          id?: string
+          monetisation_readiness?: string
+          summary?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creator_dna_profiles_assessment_id_fkey"
+            columns: ["assessment_id"]
+            isOneToOne: true
+            referencedRelation: "creator_assessments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creator_dna_profiles_creator_profile_id_fkey"
+            columns: ["creator_profile_id"]
+            isOneToOne: false
+            referencedRelation: "creator_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       creator_notes: {
         Row: {
           created_at: string
