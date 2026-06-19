@@ -4,6 +4,7 @@ import { signOut } from '@/lib/supabase';
 const NAV_ITEMS = [
   { label: 'Dashboard', to: '/cockpit', icon: '📊', end: true },
   { label: 'Creators', to: '/cockpit/creators', icon: '🎬' },
+  { label: 'Assessment Templates', to: '/cockpit/settings/assessment-templates', icon: '⚙' },
 ];
 
 export function CockpitLayout() {
@@ -16,7 +17,6 @@ export function CockpitLayout() {
 
   return (
     <div className="min-h-screen bg-gray-950 flex">
-      {/* Sidebar */}
       <aside className="w-64 bg-surface border-r border-gray-800 flex flex-col shrink-0">
         <div className="p-5 border-b border-gray-800">
           <h1 className="font-display font-bold text-lg text-accent">Creators Cockpit</h1>
@@ -36,7 +36,7 @@ export function CockpitLayout() {
                 }`
               }
             >
-              <span>{item.icon}</span>
+              <span className="w-5 text-center">{item.icon}</span>
               {item.label}
             </NavLink>
           ))}
@@ -51,7 +51,6 @@ export function CockpitLayout() {
         </div>
       </aside>
 
-      {/* Main */}
       <main className="flex-1 overflow-auto">
         <div className="max-w-7xl mx-auto p-6">
           <Outlet />

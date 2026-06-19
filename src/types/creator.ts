@@ -72,6 +72,69 @@ export interface AssessmentResponses {
   email: string;
   country: string;
   consent: boolean;
+  [key: string]: unknown;
+}
+
+export type AssessmentQuestionType =
+  | 'short_text'
+  | 'long_text'
+  | 'single_choice'
+  | 'multi_choice'
+  | 'boolean'
+  | 'scale';
+
+export type AssessmentQuestionOption =
+  | string
+  | {
+      value: string;
+      label: string;
+      description?: string;
+    };
+
+export interface CreatorQuestion {
+  id: string;
+  question_key: string;
+  response_key: string;
+  question_text: string;
+  help_text: string | null;
+  section: string;
+  question_type: AssessmentQuestionType;
+  scoring_dimension: string | null;
+  options: AssessmentQuestionOption[];
+  config: Record<string, unknown>;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreatorAssessmentTemplate {
+  id: string;
+  name: string;
+  description: string | null;
+  is_default: boolean;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreatorAssessmentTemplateQuestion {
+  template_id: string;
+  question_id: string;
+  is_included: boolean;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+  question?: CreatorQuestion;
+}
+
+export interface CreatorAssessmentQuestion extends CreatorQuestion {
+  template_id: string;
+  is_included: boolean;
+  sort_order: number;
+}
+
+export interface CreatorAssessmentRuntimeTemplate extends CreatorAssessmentTemplate {
+  questions: CreatorAssessmentQuestion[];
 }
 
 export interface CreatorAssessment {
@@ -79,6 +142,11 @@ export interface CreatorAssessment {
   creator_profile_id: string;
   created_at: string;
   responses: AssessmentResponses;
+  assessment_snapshot: {
+    template_id: string;
+    template_name: string;
+    question_snapshot: CreatorAssessmentQuestion[];
+  } | null;
   creator_dna_score: number;
   brand_clarity_score: number;
   monetisation_score: number;

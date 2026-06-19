@@ -6,13 +6,72 @@ import type {
   CreatorNote,
   CreatorStatusEvent,
   AssessmentResponses,
+  CreatorAssessmentQuestion,
+  CreatorAssessmentRuntimeTemplate,
+  CreatorAssessmentTemplate,
+  CreatorAssessmentTemplateQuestion,
+  CreatorQuestion,
+  AssessmentQuestionType,
   ReportData,
 } from '@/types/creator';
 import { scoreAssessment, generateReportSlug } from './scoring';
 
 // ── Assessment Submission (public) ──
 
-export async function submitAssessment(responses: AssessmentResponses): Promise<{
+type TemplateQuestionRow = CreatorAssessmentTemplateQuestion & {
+  creator_question_bank: CreatorQuestion | null;
+};
+
+function flattenTemplate(
+  template: CreatorAssessmentTemplate,
+  rows: TemplateQuestionRow[] | null | undefined
+): CreatorAssessmentRuntimeTemplate {
+  return {
+    ...template,
+    questions: (rows ?? [])
+      .filter(row => row.creator_question_bank)
+      .map(row => ({
+        ...row.creator_question_bank!,
+        template_id: row.template_id,
+        is_included: row.is_included,
+        sort_order: row.sort_order,
+      }))
+      .sort((a, b) => a.sort_order - b.sort_order),
+  };
+}
+
+export async function getDefaultAssessmentTemplate(): Promise<CreatorAssessmentRuntimeTemplate | null> {
+  const { data, error } = await supabase
+    .from('creator_assessment_templates')
+    .select(`
+      *,
+      creator_assessment_template_questions (
+        template_id,
+        question_id,
+        is_included,
+        sort_order,
+        created_at,
+        updated_at,
+        creator_question_bank (*)
+      )
+    `)
+    .eq('is_default', true)
+    .eq('is_active', true)
+    .single();
+
+  if (error) throw new Error(`Failed to load assessment template: ${error.message}`);
+  if (!data) return null;
+
+  return flattenTemplate(
+    data as CreatorAssessmentTemplate,
+    (data as { creator_assessment_template_questions?: TemplateQuestionRow[] }).creator_assessment_template_questions
+  );
+}
+
+export async function submitAssessment(
+  responses: AssessmentResponses,
+  template?: CreatorAssessmentRuntimeTemplate | null
+): Promise<{
   profile: CreatorProfile;
   assessment: CreatorAssessment;
   report: CreatorReport;
@@ -24,6 +83,15 @@ export async function submitAssessment(responses: AssessmentResponses): Promise<
 
   const result = scoreAssessment(responses);
   const slug = generateReportSlug(responses.full_name);
+  const runtimeTemplate = template ?? await getDefaultAssessmentTemplate();
+  const includedQuestions = (runtimeTemplate?.questions ?? []).filter(q => q.is_included);
+  const assessmentSnapshot = runtimeTemplate
+    ? {
+        template_id: runtimeTemplate.id,
+        template_name: runtimeTemplate.name,
+        question_snapshot: includedQuestions,
+      }
+    : null;
 
   // 2. Create creator profile
   const { data: profile, error: profileErr } = await supabase
@@ -60,6 +128,7 @@ export async function submitAssessment(responses: AssessmentResponses): Promise<
     .insert({
       creator_profile_id: profileId,
       responses,
+      assessment_snapshot: assessmentSnapshot,
       creator_dna_score: result.scores.creator_dna,
       brand_clarity_score: result.scores.brand_clarity,
       monetisation_score: result.scores.monetisation,
@@ -207,6 +276,131 @@ export async function addCreatorNote(profileId: string, note: string): Promise<C
     .select()
     .single();
   return data as CreatorNote | null;
+}
+
+// Assessment Template Management
+
+export async function getQuestionBank(): Promise<CreatorQuestion[]> {
+  const { data, error } = await supabase
+    .from('creator_question_bank')
+    .select('*')
+    .order('section', { ascending: true })
+    .order('created_at', { ascending: true });
+
+  if (error) throw new Error(`Failed to load question bank: ${error.message}`);
+  return (data ?? []) as CreatorQuestion[];
+}
+
+export async function createQuestion(input: {
+  question_key: string;
+  response_key: string;
+  question_text: string;
+  help_text?: string | null;
+  section: string;
+  question_type: AssessmentQuestionType;
+  scoring_dimension?: string | null;
+  options?: unknown[];
+}): Promise<CreatorQuestion> {
+  const { data, error } = await supabase
+    .from('creator_question_bank')
+    .insert({
+      question_key: input.question_key,
+      response_key: input.response_key,
+      question_text: input.question_text,
+      help_text: input.help_text ?? null,
+      section: input.section,
+      question_type: input.question_type,
+      scoring_dimension: input.scoring_dimension ?? null,
+      options: input.options ?? [],
+      config: {},
+      is_active: true,
+    })
+    .select()
+    .single();
+
+  if (error) throw new Error(`Failed to create question: ${error.message}`);
+  return data as CreatorQuestion;
+}
+
+export async function updateQuestion(
+  id: string,
+  input: Partial<Pick<CreatorQuestion, 'question_key' | 'response_key' | 'question_text' | 'help_text' | 'section' | 'question_type' | 'scoring_dimension' | 'options'>>
+): Promise<CreatorQuestion> {
+  const { data, error } = await supabase
+    .from('creator_question_bank')
+    .update(input)
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) throw new Error(`Failed to update question: ${error.message}`);
+  return data as CreatorQuestion;
+}
+
+export async function archiveQuestion(id: string): Promise<void> {
+  const { error } = await supabase
+    .from('creator_question_bank')
+    .update({ is_active: false })
+    .eq('id', id);
+
+  if (error) throw new Error(`Failed to archive question: ${error.message}`);
+}
+
+export async function getAssessmentTemplates(): Promise<CreatorAssessmentRuntimeTemplate[]> {
+  const { data, error } = await supabase
+    .from('creator_assessment_templates')
+    .select(`
+      *,
+      creator_assessment_template_questions (
+        template_id,
+        question_id,
+        is_included,
+        sort_order,
+        created_at,
+        updated_at,
+        creator_question_bank (*)
+      )
+    `)
+    .order('is_default', { ascending: false })
+    .order('created_at', { ascending: true });
+
+  if (error) throw new Error(`Failed to load assessment templates: ${error.message}`);
+
+  return ((data ?? []) as Array<CreatorAssessmentTemplate & { creator_assessment_template_questions?: TemplateQuestionRow[] }>)
+    .map(template => flattenTemplate(template, template.creator_assessment_template_questions));
+}
+
+export async function upsertTemplateQuestion(
+  templateId: string,
+  question: Pick<CreatorAssessmentQuestion, 'id' | 'is_included' | 'sort_order'>,
+  changes: Partial<Pick<CreatorAssessmentQuestion, 'is_included' | 'sort_order'>>
+): Promise<void> {
+  const { error } = await supabase
+    .from('creator_assessment_template_questions')
+    .upsert({
+      template_id: templateId,
+      question_id: question.id,
+      is_included: changes.is_included ?? question.is_included,
+      sort_order: changes.sort_order ?? question.sort_order,
+    });
+
+  if (error) throw new Error(`Failed to update template question: ${error.message}`);
+}
+
+export async function setDefaultTemplate(templateId: string): Promise<void> {
+  const { error: clearError } = await supabase
+    .from('creator_assessment_templates')
+    .update({ is_default: false })
+    .eq('is_default', true);
+
+  if (clearError) throw new Error(`Failed to clear default template: ${clearError.message}`);
+
+  const { error } = await supabase
+    .from('creator_assessment_templates')
+    .update({ is_default: true, is_active: true })
+    .eq('id', templateId);
+
+  if (error) throw new Error(`Failed to set default template: ${error.message}`);
 }
 
 // ── Dashboard Metrics ──

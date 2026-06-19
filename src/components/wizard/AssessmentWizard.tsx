@@ -1,9 +1,12 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { submitAssessment } from '@/lib/creators-api';
-import type { AssessmentResponses } from '@/types/creator';
-
-type WizardStep = 0 | 1 | 2 | 3 | 4;
+import { getDefaultAssessmentTemplate, submitAssessment } from '@/lib/creators-api';
+import type {
+  AssessmentQuestionOption,
+  AssessmentResponses,
+  CreatorAssessmentQuestion,
+  CreatorAssessmentRuntimeTemplate,
+} from '@/types/creator';
 
 const INITIAL: AssessmentResponses = {
   strengths: [],
@@ -21,54 +24,325 @@ const INITIAL: AssessmentResponses = {
   consent: false,
 };
 
-const STEPS = ['Strengths', 'Persona', 'Boundaries', 'Goals', 'Submit'];
+const SECTION_ORDER = ['Strengths', 'Persona', 'Boundaries', 'Goals'];
+const SECTION_TITLES: Record<string, string> = {
+  Strengths: 'What are your top three natural ingredients?',
+  Persona: "Identify your persona's backstory",
+  Boundaries: 'Set your boundaries',
+  Goals: 'Define your audience',
+};
 
-const STRENGTH_OPTIONS = ['Humor', 'Dancing', 'Public Speaking', 'Specific Sport', 'Specialized Knowledge/Astrology', 'High-Energy', 'Aesthetic/Cozy'];
-const PERSONA_OPTIONS = ['Struggling student', 'Professional athlete', 'Corporate rebel', 'Cosy stay-at-home mom', 'Fitness enthusiast', 'Artist / creative', 'Spiritual guide', 'Party girl', 'Other'];
-const NICHE_OPTIONS = ['Armpits', 'Feet', 'Fitness/Muscle', 'Roleplay', 'Daddy dynamic', 'High-Fashion'];
-const NUDITY_OPTIONS = [
-  { value: 'sfw_only', label: 'SFW only' },
-  { value: 'teasing_only', label: 'Teasing only' },
-  { value: 'topless', label: 'Topless' },
-  { value: 'full_nude', label: 'Full nude' },
-  { value: 'fetish', label: 'Fetish-specific' },
-];
+const SECTION_HELP: Record<string, string> = {
+  Persona: 'What\'s your character\'s "occupation" or storyline?',
+  Goals: 'This shapes your entire monetisation strategy',
+};
+
+const FALLBACK_TEMPLATE: CreatorAssessmentRuntimeTemplate = {
+  id: 'legacy-fallback',
+  name: 'Default Creator Assessment',
+  description: 'Legacy fallback used before assessment template tables are available.',
+  is_default: true,
+  is_active: true,
+  created_at: '',
+  updated_at: '',
+  questions: [
+    {
+      id: 'fallback-strengths',
+      question_key: 'strengths',
+      response_key: 'strengths',
+      question_text: 'What are your top three natural ingredients?',
+      help_text: 'Select all that apply',
+      section: 'Strengths',
+      question_type: 'multi_choice',
+      scoring_dimension: 'creator_dna',
+      options: ['Humor', 'Dancing', 'Public Speaking', 'Specific Sport', 'Specialized Knowledge/Astrology', 'High-Energy', 'Aesthetic/Cozy'],
+      config: { required: true },
+      is_active: true,
+      created_at: '',
+      updated_at: '',
+      template_id: 'legacy-fallback',
+      is_included: true,
+      sort_order: 10,
+    },
+    {
+      id: 'fallback-comfort',
+      question_key: 'comfort_level',
+      response_key: 'comfort_level',
+      question_text: 'Rate your comfort level in front of the camera (1-10)',
+      help_text: null,
+      section: 'Strengths',
+      question_type: 'scale',
+      scoring_dimension: 'creator_dna',
+      options: [],
+      config: { min: 1, max: 10, required: true },
+      is_active: true,
+      created_at: '',
+      updated_at: '',
+      template_id: 'legacy-fallback',
+      is_included: true,
+      sort_order: 20,
+    },
+    {
+      id: 'fallback-passion',
+      question_key: 'passion_topic',
+      response_key: 'passion_topic',
+      question_text: 'What is one topic you could talk about for 30 minutes without preparation?',
+      help_text: null,
+      section: 'Strengths',
+      question_type: 'long_text',
+      scoring_dimension: 'consistency',
+      options: [],
+      config: { placeholder: 'E.g., astrology, vintage fashion, conspiracy theories...' },
+      is_active: true,
+      created_at: '',
+      updated_at: '',
+      template_id: 'legacy-fallback',
+      is_included: true,
+      sort_order: 30,
+    },
+    {
+      id: 'fallback-persona',
+      question_key: 'persona_occupation',
+      response_key: 'persona_occupation',
+      question_text: "Identify your persona's backstory",
+      help_text: 'What\'s your character\'s "occupation" or storyline?',
+      section: 'Persona',
+      question_type: 'single_choice',
+      scoring_dimension: 'brand_identity',
+      options: ['Struggling student', 'Professional athlete', 'Corporate rebel', 'Cosy stay-at-home mom', 'Fitness enthusiast', 'Artist / creative', 'Spiritual guide', 'Party girl', 'Other'],
+      config: { required: true },
+      is_active: true,
+      created_at: '',
+      updated_at: '',
+      template_id: 'legacy-fallback',
+      is_included: true,
+      sort_order: 40,
+    },
+    {
+      id: 'fallback-parasocial',
+      question_key: 'parasocial_comfort',
+      response_key: 'parasocial_comfort',
+      question_text: 'Comfortable sharing personal/dating stories to build parasocial bonds?',
+      help_text: null,
+      section: 'Persona',
+      question_type: 'boolean',
+      scoring_dimension: 'monetisation',
+      options: [],
+      config: { trueLabel: 'Yes', falseLabel: 'No' },
+      is_active: true,
+      created_at: '',
+      updated_at: '',
+      template_id: 'legacy-fallback',
+      is_included: true,
+      sort_order: 50,
+    },
+    {
+      id: 'fallback-fantasy',
+      question_key: 'fantasy_keywords',
+      response_key: 'fantasy_keywords',
+      question_text: 'Describe your hottest fantasy in three keywords',
+      help_text: null,
+      section: 'Persona',
+      question_type: 'short_text',
+      scoring_dimension: 'brand_identity',
+      options: [],
+      config: { placeholder: 'E.g., power, submission, luxury' },
+      is_active: true,
+      created_at: '',
+      updated_at: '',
+      template_id: 'legacy-fallback',
+      is_included: true,
+      sort_order: 60,
+    },
+    {
+      id: 'fallback-nudity',
+      question_key: 'nudity_level',
+      response_key: 'nudity_level',
+      question_text: 'Nudity comfort level',
+      help_text: null,
+      section: 'Boundaries',
+      question_type: 'single_choice',
+      scoring_dimension: 'boundaries',
+      options: [
+        { value: 'sfw_only', label: 'SFW only' },
+        { value: 'teasing_only', label: 'Teasing only' },
+        { value: 'topless', label: 'Topless' },
+        { value: 'full_nude', label: 'Full nude' },
+        { value: 'fetish', label: 'Fetish-specific' },
+      ],
+      config: { required: true },
+      is_active: true,
+      created_at: '',
+      updated_at: '',
+      template_id: 'legacy-fallback',
+      is_included: true,
+      sort_order: 70,
+    },
+    {
+      id: 'fallback-niches',
+      question_key: 'niche_interests',
+      response_key: 'niche_interests',
+      question_text: 'Natural niche interests',
+      help_text: 'Select any that resonate',
+      section: 'Boundaries',
+      question_type: 'multi_choice',
+      scoring_dimension: 'content_strategy',
+      options: ['Armpits', 'Feet', 'Fitness/Muscle', 'Roleplay', 'Daddy dynamic', 'High-Fashion'],
+      config: {},
+      is_active: true,
+      created_at: '',
+      updated_at: '',
+      template_id: 'legacy-fallback',
+      is_included: true,
+      sort_order: 80,
+    },
+    {
+      id: 'fallback-audience',
+      question_key: 'audience_target',
+      response_key: 'audience_target',
+      question_text: 'Define your audience',
+      help_text: 'This shapes your entire monetisation strategy',
+      section: 'Goals',
+      question_type: 'single_choice',
+      scoring_dimension: 'monetisation',
+      options: [
+        { value: 'whales', label: 'Whales', description: 'High-spending executives seeking luxury & exclusivity. Low volume, high revenue per sub.' },
+        { value: 'masses', label: 'The Masses', description: 'High-volume casual subscribers. Quantity over ticket size. Free trial + upsell model.' },
+      ],
+      config: { required: true, variant: 'audience_cards' },
+      is_active: true,
+      created_at: '',
+      updated_at: '',
+      template_id: 'legacy-fallback',
+      is_included: true,
+      sort_order: 90,
+    },
+  ],
+};
+
+function optionValue(option: AssessmentQuestionOption): string {
+  return typeof option === 'string' ? option : option.value;
+}
+
+function optionLabel(option: AssessmentQuestionOption): string {
+  return typeof option === 'string' ? option : option.label;
+}
+
+function optionDescription(option: AssessmentQuestionOption): string | undefined {
+  return typeof option === 'string' ? undefined : option.description;
+}
+
+function isVisible(question: CreatorAssessmentQuestion, data: AssessmentResponses): boolean {
+  const displayWhen = question.config.displayWhen as { responseKey?: string; equals?: unknown } | undefined;
+  if (!displayWhen?.responseKey) return true;
+  return data[displayWhen.responseKey] === displayWhen.equals;
+}
+
+function defaultValue(question: CreatorAssessmentQuestion): unknown {
+  if (question.question_type === 'multi_choice') return [];
+  if (question.question_type === 'boolean') return false;
+  if (question.question_type === 'scale') return Number(question.config.min ?? 1);
+  return '';
+}
 
 export function AssessmentWizard() {
-  const [step, setStep] = useState<WizardStep>(0);
+  const [step, setStep] = useState(0);
   const [data, setData] = useState<AssessmentResponses>(INITIAL);
+  const [template, setTemplate] = useState<CreatorAssessmentRuntimeTemplate | null>(null);
+  const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
 
-  const update = <K extends keyof AssessmentResponses>(k: K, v: AssessmentResponses[K]) =>
-    setData(d => ({ ...d, [k]: v }));
+  useEffect(() => {
+    let mounted = true;
 
-  const toggleArray = (field: 'strengths' | 'niche_interests', value: string) => {
-    setData(d => ({
-      ...d,
-      [field]: d[field].includes(value)
-        ? d[field].filter(x => x !== value)
-        : [...d[field], value],
-    }));
+    getDefaultAssessmentTemplate()
+      .then(runtimeTemplate => {
+        if (!mounted) return;
+        setTemplate(runtimeTemplate);
+        setData(current => {
+          const next = { ...current };
+          for (const question of runtimeTemplate?.questions ?? []) {
+            if (next[question.response_key] === undefined) {
+              next[question.response_key] = defaultValue(question);
+            }
+            const notesKey = question.config.notesKey as string | undefined;
+            if (notesKey && next[notesKey] === undefined) next[notesKey] = '';
+          }
+          return next;
+        });
+      })
+      .catch(() => setTemplate(FALLBACK_TEMPLATE))
+      .finally(() => {
+        if (mounted) setLoading(false);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const sections = useMemo(() => {
+    const includedQuestions = (template?.questions ?? []).filter(q => q.is_included && q.is_active);
+    const grouped = new Map<string, CreatorAssessmentQuestion[]>();
+
+    for (const question of includedQuestions) {
+      grouped.set(question.section, [...(grouped.get(question.section) ?? []), question]);
+    }
+
+    return Array.from(grouped.entries())
+      .sort(([a], [b]) => {
+        const ai = SECTION_ORDER.indexOf(a);
+        const bi = SECTION_ORDER.indexOf(b);
+        return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+      })
+      .map(([section, questions]) => ({
+        section,
+        questions: questions.sort((a, b) => a.sort_order - b.sort_order),
+      }));
+  }, [template]);
+
+  const steps = [...sections.map(x => x.section), 'Submit'];
+  const activeSection = sections[step];
+  const isSubmitStep = step === steps.length - 1;
+
+  const update = (key: string, value: unknown) => {
+    setData(d => ({ ...d, [key]: value }));
+  };
+
+  const toggleArray = (key: string, value: string) => {
+    setData(d => {
+      const existing = Array.isArray(d[key]) ? d[key] as string[] : [];
+      return {
+        ...d,
+        [key]: existing.includes(value)
+          ? existing.filter(x => x !== value)
+          : [...existing, value],
+      };
+    });
   };
 
   const canNext = (): boolean => {
-    switch (step) {
-      case 0: return data.strengths.length > 0;
-      case 1: return data.persona_occupation !== '';
-      case 2: return data.nudity_level !== '';
-      case 3: return data.audience_target !== null;
-      case 4: return data.full_name !== '' && data.email !== '' && data.country !== '' && data.consent;
-      default: return true;
+    if (isSubmitStep) {
+      return data.full_name !== '' && data.email !== '' && data.country !== '' && data.consent;
     }
+
+    return (activeSection?.questions ?? [])
+      .filter(question => isVisible(question, data))
+      .every(question => {
+        if (!question.config.required) return true;
+        const value = data[question.response_key];
+        if (Array.isArray(value)) return value.length > 0;
+        return value !== '' && value !== null && value !== undefined;
+      });
   };
 
   const handleSubmit = async () => {
     setSubmitting(true);
     setError('');
     try {
-      const result = await submitAssessment(data);
+      const result = await submitAssessment(data, template);
       navigate(`/report/${result.report.report_slug}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Something went wrong');
@@ -76,18 +350,193 @@ export function AssessmentWizard() {
     }
   };
 
+  const renderQuestion = (question: CreatorAssessmentQuestion, firstInSection: boolean) => {
+    if (!isVisible(question, data)) return null;
+
+    const value = data[question.response_key];
+    const showAsHeading = firstInSection && question.section !== 'Boundaries';
+
+    return (
+      <div key={question.id}>
+        {showAsHeading ? (
+          <>
+            <h2 className="font-display text-xl font-semibold">
+              {SECTION_TITLES[question.section] ?? question.question_text}
+            </h2>
+            {(question.help_text || SECTION_HELP[question.section]) && (
+              <p className="text-gray-500 text-sm mt-2">{question.help_text ?? SECTION_HELP[question.section]}</p>
+            )}
+          </>
+        ) : (
+          <>
+            <label className="block text-sm font-medium mb-2 text-gray-300">
+              {question.question_text}
+            </label>
+            {question.help_text && <p className="text-gray-500 text-xs mb-3">{question.help_text}</p>}
+          </>
+        )}
+
+        {question.question_type === 'multi_choice' && (
+          <div className={question.section === 'Boundaries' ? 'grid grid-cols-2 gap-2' : 'flex flex-wrap gap-2'}>
+            {question.options.map(option => {
+              const optionKey = optionValue(option);
+              const selected = Array.isArray(value) && value.includes(optionKey);
+              return (
+                <button
+                  key={optionKey}
+                  onClick={() => toggleArray(question.response_key, optionKey)}
+                  className={`${question.section === 'Boundaries' ? 'px-4 py-3 rounded-lg text-left' : 'px-4 py-2 rounded-full'} text-sm font-medium border transition-all ${
+                    selected
+                      ? 'bg-accent/20 border-accent text-accent'
+                      : 'border-gray-700 text-gray-400 hover:border-gray-500'
+                  }`}
+                >
+                  {optionLabel(option)}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {question.question_type === 'single_choice' && question.config.variant === 'audience_cards' && (
+          <div className="grid grid-cols-2 gap-4">
+            {question.options.map(option => {
+              const optionKey = optionValue(option);
+              return (
+                <button
+                  key={optionKey}
+                  onClick={() => update(question.response_key, optionKey)}
+                  className={`p-5 rounded-xl border-2 transition-all text-left ${
+                    value === optionKey
+                      ? 'border-accent bg-accent/10'
+                      : 'border-gray-700 hover:border-gray-500'
+                  }`}
+                >
+                  <div className="font-semibold text-gray-100">{optionLabel(option)}</div>
+                  {optionDescription(option) && (
+                    <p className="text-xs text-gray-500 mt-1">{optionDescription(option)}</p>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {question.question_type === 'single_choice' && question.config.variant !== 'audience_cards' && (
+          <div className="grid grid-cols-2 gap-2">
+            {question.options.map(option => {
+              const optionKey = optionValue(option);
+              return (
+                <button
+                  key={optionKey}
+                  onClick={() => update(question.response_key, optionKey)}
+                  className={`px-4 py-3 rounded-lg text-sm font-medium border transition-all text-left ${
+                    value === optionKey
+                      ? question.section === 'Boundaries'
+                        ? 'bg-pink/20 border-pink text-pink'
+                        : 'bg-accent/20 border-accent text-accent'
+                      : 'border-gray-700 text-gray-400 hover:border-gray-500'
+                  }`}
+                >
+                  {optionLabel(option)}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {question.question_type === 'boolean' && (
+          <div className="flex gap-2">
+            {[
+              { label: String(question.config.trueLabel ?? 'Yes'), value: true },
+              { label: String(question.config.falseLabel ?? 'No'), value: false },
+            ].map(option => (
+              <button
+                key={option.label}
+                onClick={() => update(question.response_key, option.value)}
+                className={`px-6 py-2 rounded-full text-sm font-medium border transition-all ${
+                  value === option.value
+                    ? 'bg-pink/20 border-pink text-pink'
+                    : 'border-gray-700 text-gray-400 hover:border-gray-500'
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {question.question_type === 'scale' && (
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-gray-500">{String(question.config.min ?? 1)}</span>
+            <input
+              type="range"
+              min={Number(question.config.min ?? 1)}
+              max={Number(question.config.max ?? 10)}
+              value={Number(value ?? question.config.min ?? 1)}
+              onChange={e => update(question.response_key, parseInt(e.target.value))}
+              className="flex-1 accent-accent"
+            />
+            <span className="text-xs text-gray-500">{String(question.config.max ?? 10)}</span>
+            <span className="font-display text-xl text-accent ml-2 w-6 text-center">{String(value)}</span>
+          </div>
+        )}
+
+        {question.question_type === 'short_text' && (
+          <input
+            type="text"
+            value={String(value ?? '')}
+            onChange={e => update(question.response_key, e.target.value)}
+            placeholder={String(question.config.placeholder ?? '')}
+            className="w-full bg-surface-2 border border-gray-700 rounded-lg px-4 py-3 text-gray-100 placeholder-gray-500 focus:outline-none focus:border-accent"
+          />
+        )}
+
+        {question.question_type === 'long_text' && (
+          <textarea
+            value={String(value ?? '')}
+            onChange={e => update(question.response_key, e.target.value)}
+            placeholder={String(question.config.placeholder ?? '')}
+            rows={3}
+            className="w-full bg-surface-2 border border-gray-700 rounded-lg px-4 py-3 text-gray-100 placeholder-gray-500 focus:outline-none focus:border-accent resize-none"
+          />
+        )}
+
+        {Boolean(question.config.notesKey) && (
+          <div className="mt-3">
+            <label className="block text-sm font-medium mb-2 text-gray-300">
+              {String(question.config.notesLabel ?? 'Notes')}
+            </label>
+            <textarea
+              value={String(data[String(question.config.notesKey)] ?? '')}
+              onChange={e => update(String(question.config.notesKey), e.target.value)}
+              rows={3}
+              className="w-full bg-surface-2 border border-gray-700 rounded-lg px-4 py-3 text-gray-100 placeholder-gray-500 focus:outline-none focus:border-accent resize-none"
+            />
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <p className="text-gray-500 text-sm">Loading assessment...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4">
       <div className="w-full max-w-xl">
-        {/* Header */}
         <div className="text-center mb-10">
           <h1 className="font-display text-3xl font-bold mb-2">Creator Ikigai</h1>
           <p className="text-gray-500 text-sm">Brand Strategy Wizard</p>
         </div>
 
-        {/* Progress */}
         <div className="flex gap-2 mb-10">
-          {STEPS.map((label, i) => (
+          {steps.map((label, i) => (
             <div key={label} className="flex-1">
               <div className={`h-1 rounded-full transition-colors ${i <= step ? 'bg-accent' : 'bg-surface-3'}`} />
               <span className={`text-xs mt-1 block ${i <= step ? 'text-accent' : 'text-gray-600'}`}>{label}</span>
@@ -95,211 +544,24 @@ export function AssessmentWizard() {
           ))}
         </div>
 
-        {/* Error */}
         {error && (
           <div className="bg-red-900/20 border border-red-800 text-red-300 rounded-lg px-4 py-3 mb-6 text-sm">
             {error}
           </div>
         )}
 
-        {/* Step 0: Strengths */}
-        {step === 0 && (
+        {!isSubmitStep && activeSection && (
           <div className="space-y-6 animate-in">
-            <h2 className="font-display text-xl font-semibold">What are your top three natural ingredients?</h2>
-            <p className="text-gray-500 text-sm">Select all that apply</p>
-            <div className="flex flex-wrap gap-2">
-              {STRENGTH_OPTIONS.map(s => (
-                <button
-                  key={s}
-                  onClick={() => toggleArray('strengths', s)}
-                  className={`px-4 py-2 rounded-full text-sm font-medium border transition-all ${
-                    data.strengths.includes(s)
-                      ? 'bg-accent/20 border-accent text-accent'
-                      : 'border-gray-700 text-gray-400 hover:border-gray-500'
-                  }`}
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-2 text-gray-300">
-                Rate your comfort level in front of the camera (1-10)
-              </label>
-              <div className="flex items-center gap-3">
-                <span className="text-xs text-gray-500">1</span>
-                <input
-                  type="range"
-                  min="1"
-                  max="10"
-                  value={data.comfort_level}
-                  onChange={e => update('comfort_level', parseInt(e.target.value))}
-                  className="flex-1 accent-accent"
-                />
-                <span className="text-xs text-gray-500">10</span>
-                <span className="font-display text-xl text-accent ml-2 w-6 text-center">{data.comfort_level}</span>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-2 text-gray-300">
-                What is one topic you could talk about for 30 minutes without preparation?
-              </label>
-              <textarea
-                value={data.passion_topic}
-                onChange={e => update('passion_topic', e.target.value)}
-                placeholder="E.g., astrology, vintage fashion, conspiracy theories..."
-                rows={3}
-                className="w-full bg-surface-2 border border-gray-700 rounded-lg px-4 py-3 text-gray-100 placeholder-gray-500 focus:outline-none focus:border-accent resize-none"
-              />
-            </div>
+            {activeSection.section === 'Boundaries' && (
+              <h2 className="font-display text-xl font-semibold">{SECTION_TITLES.Boundaries}</h2>
+            )}
+            {activeSection.questions.map((question, index) => renderQuestion(question, index === 0))}
           </div>
         )}
 
-        {/* Step 1: Persona */}
-        {step === 1 && (
+        {isSubmitStep && (
           <div className="space-y-6 animate-in">
-            <h2 className="font-display text-xl font-semibold">Identify your persona's backstory</h2>
-            <p className="text-gray-500 text-sm">What's your character's "occupation" or storyline?</p>
-            <div className="grid grid-cols-2 gap-2">
-              {PERSONA_OPTIONS.map(p => (
-                <button
-                  key={p}
-                  onClick={() => update('persona_occupation', p)}
-                  className={`px-4 py-3 rounded-lg text-sm font-medium border transition-all text-left ${
-                    data.persona_occupation === p
-                      ? 'bg-accent/20 border-accent text-accent'
-                      : 'border-gray-700 text-gray-400 hover:border-gray-500'
-                  }`}
-                >
-                  {p}
-                </button>
-              ))}
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-2 text-gray-300">
-                  Comfortable sharing personal/dating stories to build parasocial bonds?
-                </label>
-                <div className="flex gap-2">
-                  {(['Yes', 'No'] as const).map(v => (
-                    <button
-                      key={v}
-                      onClick={() => update('parasocial_comfort', v === 'Yes')}
-                      className={`px-6 py-2 rounded-full text-sm font-medium border transition-all ${
-                        data.parasocial_comfort === (v === 'Yes')
-                          ? 'bg-pink/20 border-pink text-pink'
-                          : 'border-gray-700 text-gray-400 hover:border-gray-500'
-                      }`}
-                    >
-                      {v}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-2 text-gray-300">
-                  Describe your hottest fantasy in three keywords
-                </label>
-                <input
-                  type="text"
-                  value={data.fantasy_keywords}
-                  onChange={e => update('fantasy_keywords', e.target.value)}
-                  placeholder="E.g., power, submission, luxury"
-                  className="w-full bg-surface-2 border border-gray-700 rounded-lg px-4 py-3 text-gray-100 placeholder-gray-500 focus:outline-none focus:border-accent"
-                />
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Step 2: Boundaries */}
-        {step === 2 && (
-          <div className="space-y-6 animate-in">
-            <h2 className="font-display text-xl font-semibold">Set your boundaries</h2>
-
-            <div>
-              <label className="block text-sm font-medium mb-3 text-gray-300">Nudity comfort level</label>
-              <div className="grid grid-cols-2 gap-2">
-                {NUDITY_OPTIONS.map(o => (
-                  <button
-                    key={o.value}
-                    onClick={() => update('nudity_level', o.value)}
-                    className={`px-4 py-3 rounded-lg text-sm font-medium border transition-all text-left ${
-                      data.nudity_level === o.value
-                        ? 'bg-pink/20 border-pink text-pink'
-                        : 'border-gray-700 text-gray-400 hover:border-gray-500'
-                    }`}
-                  >
-                    {o.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-3 text-gray-300">Natural niche interests</label>
-              <p className="text-gray-500 text-xs mb-3">Select any that resonate</p>
-              <div className="grid grid-cols-2 gap-2">
-                {NICHE_OPTIONS.map(n => (
-                  <button
-                    key={n}
-                    onClick={() => toggleArray('niche_interests', n)}
-                    className={`px-4 py-3 rounded-lg text-sm font-medium border transition-all text-left ${
-                      data.niche_interests.includes(n)
-                        ? 'bg-accent/20 border-accent text-accent'
-                        : 'border-gray-700 text-gray-400 hover:border-gray-500'
-                    }`}
-                  >
-                    {n}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Step 3: Goals */}
-        {step === 3 && (
-          <div className="space-y-6 animate-in">
-            <h2 className="font-display text-xl font-semibold">Define your audience</h2>
-            <p className="text-gray-500 text-sm">This shapes your entire monetisation strategy</p>
-            <div className="grid grid-cols-2 gap-4">
-              <button
-                onClick={() => update('audience_target', 'whales')}
-                className={`p-5 rounded-xl border-2 transition-all text-left ${
-                  data.audience_target === 'whales'
-                    ? 'border-accent bg-accent/10'
-                    : 'border-gray-700 hover:border-gray-500'
-                }`}
-              >
-                <div className="text-2xl mb-2">🐋</div>
-                <div className="font-semibold text-gray-100">Whales</div>
-                <p className="text-xs text-gray-500 mt-1">High-spending executives seeking luxury & exclusivity. Low volume, high revenue per sub.</p>
-              </button>
-              <button
-                onClick={() => update('audience_target', 'masses')}
-                className={`p-5 rounded-xl border-2 transition-all text-left ${
-                  data.audience_target === 'masses'
-                    ? 'border-accent bg-accent/10'
-                    : 'border-gray-700 hover:border-gray-500'
-                }`}
-              >
-                <div className="text-2xl mb-2">🌊</div>
-                <div className="font-semibold text-gray-100">The Masses</div>
-                <p className="text-xs text-gray-500 mt-1">High-volume casual subscribers. Quantity over ticket size. Free trial + upsell model.</p>
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Step 4: Submit */}
-        {step === 4 && (
-          <div className="space-y-6 animate-in">
-            <h2 className="font-display text-xl font-semibold">Almost done — who are you?</h2>
+            <h2 className="font-display text-xl font-semibold">Almost done - who are you?</h2>
             <div className="space-y-4">
               <input
                 type="text"
@@ -337,19 +599,18 @@ export function AssessmentWizard() {
           </div>
         )}
 
-        {/* Navigation */}
         <div className="flex gap-3 mt-10">
           {step > 0 && (
             <button
-              onClick={() => setStep(s => (s - 1) as WizardStep)}
+              onClick={() => setStep(s => s - 1)}
               className="px-6 py-2.5 rounded-lg border border-gray-700 text-gray-400 hover:text-gray-200 hover:border-gray-500 transition-all text-sm font-medium"
             >
               Back
             </button>
           )}
-          {step < 4 ? (
+          {!isSubmitStep ? (
             <button
-              onClick={() => setStep(s => (s + 1) as WizardStep)}
+              onClick={() => setStep(s => s + 1)}
               disabled={!canNext()}
               className="ml-auto px-6 py-2.5 rounded-lg bg-accent hover:bg-accent-2 text-gray-950 font-semibold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
             >
@@ -366,7 +627,7 @@ export function AssessmentWizard() {
           )}
         </div>
         <p className="text-xs text-gray-600 text-center mt-4">
-          Step {step + 1} of {STEPS.length}
+          Step {step + 1} of {steps.length}
         </p>
       </div>
     </div>
