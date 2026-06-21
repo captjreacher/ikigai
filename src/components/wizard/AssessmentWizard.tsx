@@ -471,7 +471,7 @@ export function AssessmentWizard() {
         )}
 
         {question.question_type === 'multi_choice' && (
-          <div className={question.section === 'Boundaries' ? 'grid grid-cols-1 sm:grid-cols-2 gap-2' : 'flex flex-wrap gap-2'}>
+          <div className={question.section === 'Boundaries' ? 'grid max-w-xl grid-cols-1 gap-2 sm:grid-cols-2' : 'flex max-w-lg flex-wrap gap-2'}>
             {activeOptions(question).map(option => {
               const optionKey = optionValue(option);
               const selected = Array.isArray(value) && value.includes(optionKey);
@@ -479,7 +479,7 @@ export function AssessmentWizard() {
                 <button
                   key={optionKey}
                   onClick={() => toggleArray(question.response_key, optionKey)}
-                  className={`${question.section === 'Boundaries' ? 'px-4 py-3 rounded-lg text-left' : 'px-4 py-2 rounded-full'} text-sm font-medium border transition-all ${
+                  className={`${question.section === 'Boundaries' ? 'px-4 py-3 rounded-lg text-left' : 'max-w-full px-4 py-2 rounded-full'} text-sm font-medium border transition-all ${
                     selected
                       ? 'bg-accent/20 border-accent text-accent'
                       : 'border-gray-700 text-gray-400 hover:border-gray-500'
@@ -493,7 +493,7 @@ export function AssessmentWizard() {
         )}
 
         {question.question_type === 'single_choice' && question.config.variant === 'audience_cards' && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+          <div className="grid max-w-2xl grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
             {activeOptions(question).map(option => {
               const optionKey = optionValue(option);
               return (
@@ -517,7 +517,7 @@ export function AssessmentWizard() {
         )}
 
         {question.question_type === 'single_choice' && question.config.variant !== 'audience_cards' && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <div className="grid max-w-xl grid-cols-1 gap-2 sm:grid-cols-2">
             {activeOptions(question).map(option => {
               const optionKey = optionValue(option);
               return (
@@ -540,7 +540,7 @@ export function AssessmentWizard() {
         )}
 
         {question.question_type === 'boolean' && (
-          <div className="flex gap-2">
+          <div className="flex max-w-sm gap-2">
             {[
               { label: String(question.config.trueLabel ?? 'Yes'), value: true },
               { label: String(question.config.falseLabel ?? 'No'), value: false },
@@ -561,7 +561,7 @@ export function AssessmentWizard() {
         )}
 
         {question.question_type === 'scale' && (
-          <div className="flex min-w-0 items-center gap-3">
+          <div className="flex w-full max-w-lg min-w-0 items-center gap-3 rounded-lg bg-surface/60 px-4 py-3">
             <span className="text-xs text-gray-500">{String(question.config.min ?? 1)}</span>
             <input
               type="range"
@@ -569,7 +569,7 @@ export function AssessmentWizard() {
               max={Number(question.config.max ?? 10)}
               value={Number(value ?? question.config.min ?? 1)}
               onChange={e => update(question.response_key, parseInt(e.target.value))}
-              className="flex-1 accent-accent"
+              className="min-w-0 flex-1 accent-accent"
             />
             <span className="text-xs text-gray-500">{String(question.config.max ?? 10)}</span>
             <span className="font-display text-xl text-accent ml-2 w-6 text-center">{String(value)}</span>
@@ -582,7 +582,7 @@ export function AssessmentWizard() {
             value={String(value ?? '')}
             onChange={e => update(question.response_key, e.target.value)}
             placeholder={String(question.config.placeholder ?? '')}
-            className="w-full bg-surface-2 border border-gray-700 rounded-lg px-4 py-3 text-gray-100 placeholder-gray-500 focus:outline-none focus:border-accent"
+            className="w-full max-w-lg bg-surface-2 border border-gray-700 rounded-lg px-4 py-3 text-gray-100 placeholder-gray-500 focus:outline-none focus:border-accent"
           />
         )}
 
@@ -592,7 +592,7 @@ export function AssessmentWizard() {
             onChange={e => update(question.response_key, e.target.value)}
             placeholder={String(question.config.placeholder ?? '')}
             rows={3}
-            className="w-full bg-surface-2 border border-gray-700 rounded-lg px-4 py-3 text-gray-100 placeholder-gray-500 focus:outline-none focus:border-accent resize-none"
+            className="w-full max-w-lg bg-surface-2 border border-gray-700 rounded-lg px-4 py-3 text-gray-100 placeholder-gray-500 focus:outline-none focus:border-accent resize-none"
           />
         )}
 
@@ -605,7 +605,7 @@ export function AssessmentWizard() {
               value={String(data[String(question.config.notesKey)] ?? '')}
               onChange={e => update(String(question.config.notesKey), e.target.value)}
               rows={3}
-              className="w-full bg-surface-2 border border-gray-700 rounded-lg px-4 py-3 text-gray-100 placeholder-gray-500 focus:outline-none focus:border-accent resize-none"
+              className="w-full max-w-lg bg-surface-2 border border-gray-700 rounded-lg px-4 py-3 text-gray-100 placeholder-gray-500 focus:outline-none focus:border-accent resize-none"
             />
           </div>
         )}
@@ -622,14 +622,14 @@ export function AssessmentWizard() {
   }
 
   return (
-    <div className="min-h-[100dvh] w-full overflow-y-auto px-4 py-6 sm:py-10">
-      <div className="w-full max-w-xl mx-auto">
+    <div className="min-h-[100dvh] w-full overflow-y-auto px-4 py-6 sm:px-6 sm:py-10">
+      <div className="mx-auto w-full max-w-2xl">
         <div className="text-center mb-6 sm:mb-10">
           <h1 className="font-display text-3xl font-bold mb-2">Creator Ikigai</h1>
           <p className="text-gray-500 text-sm">Brand Strategy Wizard</p>
         </div>
 
-        <div className="flex gap-2 mb-6 sm:mb-10 overflow-x-auto pb-1">
+        <div className="mx-auto mb-6 flex max-w-xl gap-2 overflow-x-auto pb-1 sm:mb-10">
           {steps.map((label, i) => (
             <div key={label} className="min-w-20 flex-1">
               <div className={`h-1 rounded-full transition-colors ${i <= step ? 'bg-accent' : 'bg-surface-3'}`} />
@@ -645,7 +645,7 @@ export function AssessmentWizard() {
         )}
 
         {!isSubmitStep && activeSection && (
-          <div className="space-y-6 animate-in">
+          <div className="mx-auto max-w-2xl space-y-6 animate-in">
             {activeSection.section === 'Boundaries' && (
               <h2 className="font-display text-xl font-semibold">{SECTION_TITLES.Boundaries}</h2>
             )}
@@ -654,7 +654,7 @@ export function AssessmentWizard() {
         )}
 
         {isSubmitStep && (
-          <div className="space-y-6 animate-in">
+          <div className="mx-auto max-w-lg space-y-6 animate-in">
             <h2 className="font-display text-xl font-semibold">Almost done - who are you?</h2>
             <div className="space-y-4">
               <input
@@ -693,7 +693,7 @@ export function AssessmentWizard() {
           </div>
         )}
 
-        <div className="flex gap-3 mt-10">
+        <div className="mx-auto mt-10 flex max-w-lg gap-3">
           {step > 0 && (
             <button
               onClick={() => setStep(s => s - 1)}

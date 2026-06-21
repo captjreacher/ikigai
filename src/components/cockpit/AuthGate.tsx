@@ -1,8 +1,10 @@
 import { useState, useEffect, type ReactNode } from 'react';
+import { useLocation } from 'react-router-dom';
 import { supabase, signInWithOTP } from '@/lib/supabase';
 import type { Session } from '@supabase/supabase-js';
 
 export function AuthGate({ children }: { children: ReactNode }) {
+  const location = useLocation();
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [email, setEmail] = useState('');
@@ -21,7 +23,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    await signInWithOTP(email);
+    await signInWithOTP(email, `${location.pathname}${location.search}`);
     setSent(true);
   };
 
