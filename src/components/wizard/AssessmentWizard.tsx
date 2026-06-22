@@ -247,6 +247,29 @@ const FALLBACK_TEMPLATE: CreatorAssessmentRuntimeTemplate = {
   ],
 };
 
+const REQUIRED_FALLBACK_QUESTION_KEYS = ['strengths'];
+
+function withRequiredFallbackQuestions(
+  template: CreatorAssessmentRuntimeTemplate
+): CreatorAssessmentRuntimeTemplate {
+  const questionKeys = new Set(template.questions.map(question => question.question_key));
+  const missingFallbackQuestions = FALLBACK_TEMPLATE.questions
+    .filter(question => REQUIRED_FALLBACK_QUESTION_KEYS.includes(question.question_key))
+    .filter(question => !questionKeys.has(question.question_key))
+    .map(question => ({
+      ...question,
+      template_id: template.id,
+    }));
+
+  if (missingFallbackQuestions.length === 0) return template;
+
+  return {
+    ...template,
+    questions: [...template.questions, ...missingFallbackQuestions]
+      .sort((a, b) => a.sort_order - b.sort_order),
+  };
+}
+
 function optionValue(option: AssessmentQuestionOption): string {
   return typeof option === 'string' ? option : option.value;
 }
@@ -330,10 +353,11 @@ export function AssessmentWizard() {
     getDefaultAssessmentTemplate()
       .then(runtimeTemplate => {
         if (!mounted) return;
-        setTemplate(runtimeTemplate);
+        const nextTemplate = withRequiredFallbackQuestions(runtimeTemplate ?? FALLBACK_TEMPLATE);
+        setTemplate(nextTemplate);
         setData(current => {
           const next = { ...current };
-          for (const question of runtimeTemplate?.questions ?? []) {
+          for (const question of nextTemplate.questions) {
             if (next[question.response_key] === undefined) {
               next[question.response_key] = defaultValue(question);
             }
@@ -343,7 +367,7 @@ export function AssessmentWizard() {
           return next;
         });
       })
-      .catch(() => setTemplate(FALLBACK_TEMPLATE))
+      .catch(() => setTemplate(withRequiredFallbackQuestions(FALLBACK_TEMPLATE)))
       .finally(() => {
         if (mounted) setLoading(false);
       });
@@ -381,6 +405,18 @@ export function AssessmentWizard() {
   const steps = [...sections.map(x => x.section), 'Submit'];
   const activeSection = sections[step];
   const isSubmitStep = step === steps.length - 1;
+  const visibleActiveSectionQuestions = useMemo(() => {
+    if (!activeSection) return [];
+
+    return activeSection.questions.filter(question => {
+      console.log(
+        question.question_key,
+        question.question_type,
+        isVisible(question, data, templateQuestions)
+      );
+      return isVisible(question, data, templateQuestions);
+    });
+  }, [activeSection, data, templateQuestions]);
 
   const update = (key: string, value: unknown) => {
     setData(d => ({ ...d, [key]: value }));
@@ -449,13 +485,16 @@ export function AssessmentWizard() {
 
     const value = data[question.response_key];
     const showAsHeading = firstInSection && question.section !== 'Boundaries';
+    const headingText = SECTION_TITLES[question.section] === question.question_text
+      ? SECTION_TITLES[question.section]
+      : question.question_text;
 
     return (
       <div key={question.id}>
         {showAsHeading ? (
           <>
             <h2 className="font-display text-xl font-semibold">
-              {SECTION_TITLES[question.section] ?? question.question_text}
+              {headingText}
             </h2>
             {(question.help_text || SECTION_HELP[question.section]) && (
               <p className="text-gray-500 text-sm mt-2">{question.help_text ?? SECTION_HELP[question.section]}</p>
@@ -649,7 +688,7 @@ export function AssessmentWizard() {
             {activeSection.section === 'Boundaries' && (
               <h2 className="font-display text-xl font-semibold">{SECTION_TITLES.Boundaries}</h2>
             )}
-            {activeSection.questions.map((question, index) => renderQuestion(question, index === 0))}
+            {visibleActiveSectionQuestions.map((question, index) => renderQuestion(question, index === 0))}
           </div>
         )}
 
