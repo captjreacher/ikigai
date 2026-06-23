@@ -88,10 +88,56 @@ export function AssessmentTemplates() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [collapsedHeadings, setCollapsedHeadings] = useState<Record<string, boolean>>({});
 
   const selectedTemplate = templates.find(template => template.id === selectedTemplateId) ?? templates[0] ?? null;
   const existingItemIds = useMemo(() => new Set(selectedTemplate?.items?.map(item => item.id) ?? []), [selectedTemplate]);
   const includedItems = draftItems.filter(item => item.is_included);
+  const editorItems = useMemo(() => {
+    let collapsed = false;
+    return [...includedItems]
+      .sort((a, b) => a.sort_order - b.sort_order)
+      .map(item => {
+        if (item.item_type === 'section_heading') {
+          collapsed = Boolean(collapsedHeadings[item.id]);
+          return { item, hiddenByCollapse: false };
+        }
+
+        return { item, hiddenByCollapse: collapsed };
+      });
+  }, [includedItems, collapsedHeadings]);
+  const previewSections = useMemo(() => {
+    const sections: Array<{ id: string; title: string; description: string; questions: DraftItem[] }> = [];
+    let current: { id: string; title: string; description: string; questions: DraftItem[] } | null = null;
+
+    for (const item of [...includedItems].sort((a, b) => a.sort_order - b.sort_order)) {
+      if (item.item_type === 'section_heading') {
+        current = {
+          id: item.id,
+          title: item.title?.trim() || 'Untitled Section',
+          description: item.description ?? '',
+          questions: [],
+        };
+        sections.push(current);
+        continue;
+      }
+
+      if (!item.question?.is_active) continue;
+      if (!current) {
+        current = {
+          id: 'unsectioned',
+          title: 'Unsectioned Questions',
+          description: '',
+          questions: [],
+        };
+        sections.push(current);
+      }
+      current.questions.push(item);
+    }
+
+    return sections.filter(section => section.questions.length > 0 || section.id !== 'unsectioned');
+  }, [includedItems]);
   const activeQuestions = questions.filter(question => question.is_active);
   const archivedQuestions = questions.filter(question => !question.is_active);
   const canSetDefault = Boolean(
@@ -265,6 +311,63 @@ export function AssessmentTemplates() {
     setDraftItems(current => ordered(current.map(row => order.has(row.id) ? { ...row, sort_order: order.get(row.id)! } : row)));
   };
 
+  const duplicateQuestionPlacement = (item: DraftItem) => {
+    if (item.item_type !== 'question' || !item.question) return;
+    const visible = [...includedItems].sort((a, b) => a.sort_order - b.sort_order);
+    const index = visible.findIndex(current => current.id === item.id);
+    const clone: DraftItem = {
+      ...item,
+      id: `new-question-placement-${Date.now()}`,
+      sort_order: item.sort_order + 1,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    const nextVisible = [...visible.slice(0, index + 1), clone, ...visible.slice(index + 1)];
+    const order = new Map(nextVisible.map((current, orderIndex) => [current.id, (orderIndex + 1) * 10]));
+    setDraftItems(current => ordered([
+      ...current.map(row => order.has(row.id) ? { ...row, sort_order: order.get(row.id)! } : row),
+      { ...clone, sort_order: order.get(clone.id)! },
+    ]));
+  };
+
+  const duplicateSection = (heading: DraftItem) => {
+    if (heading.item_type !== 'section_heading') return;
+    const includeQuestions = window.confirm('Duplicate the questions under this section too? Choose Cancel to duplicate only the heading.');
+    const visible = [...includedItems].sort((a, b) => a.sort_order - b.sort_order);
+    const headingIndex = visible.findIndex(item => item.id === heading.id);
+    const nextHeadingIndex = visible.findIndex((item, index) => index > headingIndex && item.item_type === 'section_heading');
+    const sectionQuestions = nextHeadingIndex === -1
+      ? visible.slice(headingIndex + 1)
+      : visible.slice(headingIndex + 1, nextHeadingIndex);
+    const now = Date.now();
+    const clones: DraftItem[] = [
+      {
+        ...heading,
+        id: `new-heading-${now}`,
+        title: `${heading.title ?? 'Section Heading'} Copy`,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+      ...(includeQuestions ? sectionQuestions.map((item, index) => ({
+        ...item,
+        id: `new-section-question-placement-${now}-${index}`,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })) : []),
+    ];
+    const insertIndex = nextHeadingIndex === -1 ? visible.length : nextHeadingIndex;
+    const nextVisible = [...visible.slice(0, insertIndex), ...clones, ...visible.slice(insertIndex)];
+    const order = new Map(nextVisible.map((item, index) => [item.id, (index + 1) * 10]));
+    setDraftItems(current => ordered([
+      ...current.map(row => order.has(row.id) ? { ...row, sort_order: order.get(row.id)! } : row),
+      ...clones.map(clone => ({ ...clone, sort_order: order.get(clone.id)! })),
+    ]));
+  };
+
+  const toggleHeadingCollapsed = (id: string) => {
+    setCollapsedHeadings(current => ({ ...current, [id]: !current[id] }));
+  };
+
   const submitQuestion = async (event?: FormEvent) => {
     event?.preventDefault();
     setSaving(true);
@@ -397,6 +500,42 @@ export function AssessmentTemplates() {
     }
   };
 
+  const renderPreviewInput = (item: DraftItem) => {
+    const question = item.question;
+    if (!question) return null;
+
+    if (question.question_type === 'long_text' || question.question_type === 'textarea') {
+      return <textarea disabled rows={Number(question.config.rows ?? 3)} className="mt-2 w-full resize-none rounded-lg border border-gray-700 bg-surface-2 px-4 py-3 text-sm text-gray-500" placeholder="Preview response" />;
+    }
+
+    if (question.question_type === 'short_text') {
+      return <input disabled className="mt-2 w-full rounded-lg border border-gray-700 bg-surface-2 px-4 py-3 text-sm text-gray-500" placeholder="Preview response" />;
+    }
+
+    if (question.question_type === 'scale') {
+      return <input disabled type="range" min={Number(question.config.min ?? 1)} max={Number(question.config.max ?? 10)} className="mt-3 w-full accent-accent" />;
+    }
+
+    if (question.question_type === 'boolean') {
+      return (
+        <div className="mt-3 flex gap-2">
+          <button type="button" disabled className="rounded-full border border-gray-700 px-5 py-2 text-sm text-gray-500">{String(question.config.trueLabel ?? 'Yes')}</button>
+          <button type="button" disabled className="rounded-full border border-gray-700 px-5 py-2 text-sm text-gray-500">{String(question.config.falseLabel ?? 'No')}</button>
+        </div>
+      );
+    }
+
+    return (
+      <div className="mt-3 flex flex-wrap gap-2">
+        {question.options.map((option, index) => {
+          const label = typeof option === 'string' ? option : option.label;
+          return <button type="button" disabled key={`${label}-${index}`} className="rounded-lg border border-gray-700 px-4 py-2 text-sm text-gray-500">{label}</button>;
+        })}
+        {question.options.length === 0 && <span className="text-xs text-gray-600">No options configured.</span>}
+      </div>
+    );
+  };
+
   if (loading) return <p className="text-sm text-gray-500">Loading assessment templates...</p>;
 
   return (
@@ -425,6 +564,7 @@ export function AssessmentTemplates() {
                     ))}
                   </select>
                   <button type="button" onClick={saveTemplate} disabled={Boolean(saveDisabledReason)} title={saveDisabledReason || undefined} className="rounded-lg bg-accent px-3 py-2 text-sm font-semibold text-gray-950 disabled:opacity-50">Save Template Changes</button>
+                  <button type="button" onClick={() => setPreviewOpen(true)} disabled={!selectedTemplate} className="rounded-lg border border-gray-700 px-3 py-2 text-sm font-semibold text-gray-200 disabled:opacity-50">Preview Assessment</button>
                 </div>
               </div>
               {saveDisabledReason && <p className="mt-2 text-xs text-gray-500">Save: {saveDisabledReason}</p>}
@@ -441,7 +581,8 @@ export function AssessmentTemplates() {
 
                 <div className="flex flex-wrap gap-2">
                   <span className={`rounded-full px-3 py-1 text-xs font-semibold ${selectedTemplate.is_active ? 'bg-success/10 text-success' : 'bg-warn/10 text-warn'}`}>{selectedTemplate.is_active ? 'Active' : 'Archived'}</span>
-                  {selectedTemplate.is_default && <span className="rounded-full bg-accent/10 px-3 py-1 text-xs font-semibold text-accent">Default</span>}
+                  {selectedTemplate.is_default && <span className="rounded-full bg-accent/10 px-3 py-1 text-xs font-semibold text-accent">Current Default</span>}
+                  {isDirty && <span className="rounded-full bg-warn/10 px-3 py-1 text-xs font-semibold text-warn">Draft changes unsaved</span>}
                   <button type="button" onClick={addHeading} disabled={!selectedTemplate || saving} title={!selectedTemplate ? 'Select or create a template before adding a heading.' : saving ? 'Template update already in progress.' : undefined} className="rounded-lg border border-accent/40 px-3 py-1.5 text-sm text-accent disabled:opacity-50">Add Section Heading</button>
                   {selectedTemplate.is_active ? (
                     <button type="button" onClick={() => setTemplateStatus(false)} disabled={Boolean(archiveDisabledReason)} title={archiveDisabledReason || undefined} className="rounded-lg border border-gray-700 px-3 py-1.5 text-sm text-gray-300 disabled:opacity-50">Archive Template</button>
@@ -465,7 +606,7 @@ export function AssessmentTemplates() {
                     </div>
                     <div className="divide-y divide-gray-800">
                       {includedItems.length === 0 && <p className="p-4 text-sm text-gray-500">No selected questions or headings yet.</p>}
-                      {includedItems.map(item => item.item_type === 'section_heading' ? (
+                      {editorItems.map(({ item, hiddenByCollapse }) => item.item_type === 'section_heading' ? (
                         <div key={item.id} className="bg-accent/5 p-4">
                           <div className="flex items-start gap-3">
                             <input type="checkbox" checked={item.is_included} onChange={() => toggleItem(item)} className="mt-2 accent-accent" />
@@ -475,14 +616,16 @@ export function AssessmentTemplates() {
                               <p className="text-xs uppercase tracking-wide text-accent">Section Heading</p>
                             </div>
                             <div className="flex shrink-0 flex-col gap-1">
+                              <button type="button" onClick={() => toggleHeadingCollapsed(item.id)} className="rounded border border-gray-700 px-2 py-1 text-xs text-gray-300">{collapsedHeadings[item.id] ? 'Expand' : 'Collapse'}</button>
                               <button type="button" onClick={() => moveItem(item, -1)} className="rounded border border-gray-700 px-2 py-1 text-xs text-gray-300">Up</button>
                               <button type="button" onClick={() => moveItem(item, 1)} className="rounded border border-gray-700 px-2 py-1 text-xs text-gray-300">Down</button>
+                              <button type="button" onClick={() => duplicateSection(item)} className="rounded border border-gray-700 px-2 py-1 text-xs text-gray-300">Duplicate</button>
                               <button type="button" onClick={() => toggleItem(item)} className="rounded border border-gray-700 px-2 py-1 text-xs text-gray-300">Remove</button>
                             </div>
                           </div>
                         </div>
                       ) : (
-                        <div key={item.id} className={`p-4 ${item.question?.is_active ? '' : 'bg-warn/5'}`}>
+                        <div key={item.id} className={`p-4 ${item.question?.is_active ? '' : 'bg-warn/5'} ${hiddenByCollapse ? 'hidden' : ''}`}>
                           <div className="flex items-start gap-3">
                             <input type="checkbox" checked={item.is_included} onChange={() => toggleItem(item)} className="mt-1 accent-accent" />
                             <div className="min-w-0 flex-1">
@@ -493,6 +636,7 @@ export function AssessmentTemplates() {
                             <div className="flex shrink-0 flex-col gap-1">
                               <button type="button" onClick={() => moveItem(item, -1)} className="rounded border border-gray-700 px-2 py-1 text-xs text-gray-300">Up</button>
                               <button type="button" onClick={() => moveItem(item, 1)} className="rounded border border-gray-700 px-2 py-1 text-xs text-gray-300">Down</button>
+                              <button type="button" onClick={() => duplicateQuestionPlacement(item)} className="rounded border border-gray-700 px-2 py-1 text-xs text-gray-300">Duplicate</button>
                               <button type="button" onClick={() => toggleItem(item)} className="rounded border border-gray-700 px-2 py-1 text-xs text-gray-300">Remove</button>
                             </div>
                           </div>
@@ -602,6 +746,47 @@ export function AssessmentTemplates() {
           </form>
         </aside>
       </div>
+
+      {previewOpen && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-gray-950/85 px-4 py-8">
+          <div className="mx-auto max-w-3xl rounded-lg border border-gray-800 bg-gray-950 shadow-2xl">
+            <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-gray-800 bg-gray-950 px-5 py-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-warn">Preview Only</p>
+                <h2 className="font-display text-xl font-semibold text-gray-100">{templateName || selectedTemplate?.name || 'Assessment Template'}</h2>
+                <p className="mt-1 text-sm text-gray-500">This preview uses unsaved draft changes and cannot submit assessment data.</p>
+              </div>
+              <button type="button" onClick={() => setPreviewOpen(false)} className="rounded-lg border border-gray-700 px-3 py-1.5 text-sm text-gray-300">Close</button>
+            </div>
+
+            <div className="space-y-8 px-5 py-6">
+              {previewSections.length === 0 && (
+                <p className="rounded-lg border border-gray-800 bg-surface p-4 text-sm text-gray-500">No active included questions to preview.</p>
+              )}
+              {previewSections.map(section => (
+                <section key={section.id} className="space-y-5">
+                  <div>
+                    <h3 className="font-display text-xl font-semibold text-gray-100">{section.title}</h3>
+                    {section.description && <p className="mt-2 text-sm leading-6 text-gray-500">{section.description}</p>}
+                  </div>
+                  <div className="space-y-5">
+                    {section.questions.map(item => (
+                      <div key={item.id} className="rounded-lg border border-gray-800 bg-surface p-4">
+                        <label className="block text-sm font-medium text-gray-300">{item.question?.question_text}</label>
+                        {item.question?.help_text && <p className="mt-1 text-xs text-gray-500">{item.question.help_text}</p>}
+                        {renderPreviewInput(item)}
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              ))}
+              <div className="rounded-lg border border-warn/30 bg-warn/10 px-4 py-3 text-sm text-warn">
+                Preview mode only. The real public wizard still loads only the active default template.
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

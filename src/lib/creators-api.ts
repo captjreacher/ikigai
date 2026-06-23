@@ -821,16 +821,17 @@ export async function saveTemplateItems(
     if (error) throw new Error(`Failed to save template items: ${error.message}`);
   }
 
-  await saveTemplateQuestions(
-    templateId,
-    items
-      .filter(item => item.item_type === 'question' && item.question_id)
-      .map(item => ({
-        id: item.question_id!,
-        is_included: item.is_included,
-        sort_order: item.sort_order,
-      }))
-  );
+  const legacyQuestionRows = new Map<string, Pick<CreatorAssessmentQuestion, 'id' | 'is_included' | 'sort_order'>>();
+  for (const item of items.filter(item => item.item_type === 'question' && item.question_id)) {
+    const existing = legacyQuestionRows.get(item.question_id!);
+    legacyQuestionRows.set(item.question_id!, {
+      id: item.question_id!,
+      is_included: Boolean(existing?.is_included || item.is_included),
+      sort_order: Math.min(existing?.sort_order ?? item.sort_order, item.sort_order),
+    });
+  }
+
+  await saveTemplateQuestions(templateId, Array.from(legacyQuestionRows.values()));
 }
 
 export async function createAssessmentTemplate(input: {
