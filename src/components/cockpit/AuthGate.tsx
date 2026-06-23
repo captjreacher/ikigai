@@ -3,14 +3,38 @@ import { useLocation } from 'react-router-dom';
 import { supabase, signInWithOtp } from '@/lib/supabase';
 import type { Session } from '@supabase/supabase-js';
 
+type AuthMessageKind = 'success' | 'error';
+const MAGIC_LINK_SUCCESS_MESSAGE = 'Magic link sent. Check your inbox.';
+
+function formatDiagnosticValue(value: unknown): string {
+  if (value === undefined) return 'undefined';
+  if (value === null) return 'null';
+  return String(value);
+}
+
+function authErrorMessage(error: {
+  name?: unknown;
+  message?: unknown;
+  status?: unknown;
+  code?: unknown;
+}): string {
+  return [
+    `error.name: ${formatDiagnosticValue(error.name)}`,
+    `error.message: ${formatDiagnosticValue(error.message)}`,
+    `error.status: ${formatDiagnosticValue(error.status)}`,
+    `error.code: ${formatDiagnosticValue(error.code)}`,
+    `JSON.stringify(error): ${JSON.stringify(error)}`,
+  ].join('\n');
+}
+
 export function AuthGate({ children }: { children: ReactNode }) {
   const location = useLocation();
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [email, setEmail] = useState('');
-  const [sent, setSent] = useState(false);
   const [sending, setSending] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+  const [messageKind, setMessageKind] = useState<AuthMessageKind | null>(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -26,15 +50,17 @@ export function AuthGate({ children }: { children: ReactNode }) {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setSending(true);
-    setSent(false);
-    setErrorMessage(null);
+    setMessage(null);
+    setMessageKind(null);
 
     const { error } = await signInWithOtp(email, `${location.pathname}${location.search}`);
 
     if (error) {
-      setErrorMessage(error.message);
+      setMessage(authErrorMessage(error));
+      setMessageKind('error');
     } else {
-      setSent(true);
+      setMessage(MAGIC_LINK_SUCCESS_MESSAGE);
+      setMessageKind('success');
     }
 
     setSending(false);
@@ -60,8 +86,8 @@ export function AuthGate({ children }: { children: ReactNode }) {
               value={email}
               onChange={e => {
                 setEmail(e.target.value);
-                setSent(false);
-                setErrorMessage(null);
+                setMessage(null);
+                setMessageKind(null);
               }}
               placeholder="you@agency.com"
               required
@@ -72,17 +98,17 @@ export function AuthGate({ children }: { children: ReactNode }) {
               disabled={sending}
               className="w-full bg-accent hover:bg-accent-2 text-gray-950 font-semibold rounded-lg px-4 py-3 transition-colors disabled:opacity-50"
             >
-              {sending ? 'Sending...' : sent ? 'Send again' : 'Send magic link'}
+              {sending ? 'Sending...' : messageKind === 'success' ? 'Send again' : 'Send magic link'}
             </button>
           </form>
-          {errorMessage && (
-            <p className="text-sm text-red-300 text-center mt-4" role="alert">
-              {errorMessage}
-            </p>
-          )}
-          {sent && (
-            <p className="text-sm text-gray-400 text-center mt-4">
-              Magic link sent! Check your inbox.
+          {message && (
+            <p
+              className={`text-sm text-center mt-4 ${
+                messageKind === 'error' ? 'text-red-300' : 'text-gray-400'
+              }`}
+              role={messageKind === 'error' ? 'alert' : 'status'}
+            >
+              {messageKind === 'error' ? <pre className="whitespace-pre-wrap text-left">{message}</pre> : message}
             </p>
           )}
         </div>

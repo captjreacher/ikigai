@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import type { AuthOtpResponse } from '@supabase/supabase-js';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -43,17 +44,25 @@ export function authCallbackUrl(path = getRequestedCockpitPath()): string {
   return `${window.location.origin}/auth/callback?next=${encodeURIComponent(destination)}`;
 }
 
-export async function signInWithOtp(email: string, redirectPath = getRequestedCockpitPath()) {
+export async function signInWithOtp(
+  email: string,
+  redirectPath = getRequestedCockpitPath()
+): Promise<AuthOtpResponse> {
   const destination = normalizeCockpitPath(redirectPath);
   storeAuthRedirectPath(destination);
 
-  return supabase.auth.signInWithOtp({
+  const response = await supabase.auth.signInWithOtp({
     email,
     options: {
       emailRedirectTo: authCallbackUrl(destination),
       shouldCreateUser: false,
     },
   });
+
+  console.log('[auth] signInWithOtp response', response);
+  console.log('[auth] signInWithOtp response JSON', JSON.stringify(response, null, 2));
+
+  return response;
 }
 
 export async function signOut() {
