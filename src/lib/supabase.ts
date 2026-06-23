@@ -10,7 +10,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-const AUTH_REDIRECT_KEY = 'ikigai.auth.redirectPath';
+const AUTH_REDIRECT_KEY = 'findyourvertical.auth.redirectPath';
 
 export function normalizeCockpitPath(path: string | null | undefined): string {
   if (!path) return '/cockpit';

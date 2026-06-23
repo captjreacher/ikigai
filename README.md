@@ -50,7 +50,7 @@ npm run build
 npm run deploy
 ```
 
-Deploys to Cloudflare Pages as `creators-cockpit`.
+Deploys to Cloudflare Workers as `findyourvertical`.
 
 ## Project Structure
 
