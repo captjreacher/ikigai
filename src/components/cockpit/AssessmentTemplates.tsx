@@ -1,9 +1,11 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import {
   archiveQuestion,
+  createAssessmentInviteLink,
   createAssessmentTemplate,
   createQuestion,
   deleteQuestion,
+  getAssessmentInviteLinks,
   getAssessmentTemplates,
   getQuestionBank,
   getQuestionDeleteEligibility,
@@ -16,6 +18,7 @@ import {
 } from '@/lib/creators-api';
 import type {
   AssessmentQuestionType,
+  CreatorAssessmentInviteLink,
   CreatorAssessmentTemplateItem,
   CreatorAssessmentRuntimeTemplate,
   CreatorQuestion,
@@ -35,6 +38,8 @@ const EMPTY_QUESTION = {
   scoring_dimension: '',
 };
 const EMPTY_TEMPLATE = { name: '', slug: '', description: '', duplicateFromTemplateId: '' };
+const EMPTY_INVITE = { creatorName: '', creatorEmail: '', notes: '' };
+const PUBLIC_ASSESSMENT_ORIGIN = 'https://findyourvertical.online';
 
 function normalizeKey(value: string): string {
   return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
@@ -76,6 +81,7 @@ function draftItemsFor(template: CreatorAssessmentRuntimeTemplate | null, bank: 
 export function AssessmentTemplates() {
   const [questions, setQuestions] = useState<CreatorQuestion[]>([]);
   const [templates, setTemplates] = useState<CreatorAssessmentRuntimeTemplate[]>([]);
+  const [inviteLinks, setInviteLinks] = useState<CreatorAssessmentInviteLink[]>([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState('');
   const [templateName, setTemplateName] = useState('');
   const [templateSlug, setTemplateSlug] = useState('');
@@ -84,6 +90,9 @@ export function AssessmentTemplates() {
   const [questionForm, setQuestionForm] = useState(EMPTY_QUESTION);
   const [editingQuestion, setEditingQuestion] = useState<CreatorQuestion | null>(null);
   const [templateForm, setTemplateForm] = useState(EMPTY_TEMPLATE);
+  const [inviteForm, setInviteForm] = useState(EMPTY_INVITE);
+  const [inviteModalOpen, setInviteModalOpen] = useState(false);
+  const [generatedInviteUrl, setGeneratedInviteUrl] = useState('');
   const [deleteEligibility, setDeleteEligibility] = useState<Record<string, DeleteEligibility>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -93,6 +102,7 @@ export function AssessmentTemplates() {
   const [collapsedHeadings, setCollapsedHeadings] = useState<Record<string, boolean>>({});
 
   const selectedTemplate = templates.find(template => template.id === selectedTemplateId) ?? templates[0] ?? null;
+  const selectedInviteLinks = inviteLinks.filter(link => link.template_id === selectedTemplate?.id);
   const existingItemIds = useMemo(() => new Set(selectedTemplate?.items?.map(item => item.id) ?? []), [selectedTemplate]);
   const includedItems = draftItems.filter(item => item.is_included);
   const editorItems = useMemo(() => {
@@ -203,9 +213,14 @@ export function AssessmentTemplates() {
           : '';
 
   const load = async (preferredTemplateId?: string) => {
-    const [bank, loadedTemplates] = await Promise.all([getQuestionBank(), getAssessmentTemplates()]);
+    const [bank, loadedTemplates, loadedInviteLinks] = await Promise.all([
+      getQuestionBank(),
+      getAssessmentTemplates(),
+      getAssessmentInviteLinks(),
+    ]);
     setQuestions(bank);
     setTemplates(loadedTemplates);
+    setInviteLinks(loadedInviteLinks);
     setSelectedTemplateId(current => preferredTemplateId || current || loadedTemplates[0]?.id || '');
     const entries = await Promise.all(bank.map(async question => [question.id, await getQuestionDeleteEligibility(question.id)] as const));
     setDeleteEligibility(Object.fromEntries(entries));
@@ -445,6 +460,42 @@ export function AssessmentTemplates() {
     }
   };
 
+  const openInviteModal = () => {
+    if (!selectedTemplate) return;
+    setInviteForm(EMPTY_INVITE);
+    setGeneratedInviteUrl('');
+    setInviteModalOpen(true);
+  };
+
+  const createInviteLink = async (event?: FormEvent) => {
+    event?.preventDefault();
+    if (!selectedTemplate || !inviteForm.creatorName.trim()) return;
+    setSaving(true);
+    setError('');
+    setSuccess('');
+    try {
+      const invite = await createAssessmentInviteLink({
+        templateId: selectedTemplate.id,
+        creatorName: inviteForm.creatorName,
+        creatorEmail: inviteForm.creatorEmail || null,
+        notes: inviteForm.notes || null,
+      });
+      const url = `${PUBLIC_ASSESSMENT_ORIGIN}/a/${selectedTemplate.slug}?ref=${invite.invite_code}`;
+      setGeneratedInviteUrl(url);
+      await load(selectedTemplate.id);
+      setSuccess('Invite link generated.');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to generate invite link');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const copyInviteUrl = async (url: string) => {
+    await navigator.clipboard.writeText(url);
+    setSuccess('Invite URL copied.');
+  };
+
   const setTemplateStatus = async (isActive: boolean) => {
     if (!selectedTemplate) return;
     setSaving(true);
@@ -573,6 +624,7 @@ export function AssessmentTemplates() {
                   </select>
                   <button type="button" onClick={saveTemplate} disabled={Boolean(saveDisabledReason)} title={saveDisabledReason || undefined} className="rounded-lg bg-accent px-3 py-2 text-sm font-semibold text-gray-950 disabled:opacity-50">Save Template Changes</button>
                   <button type="button" onClick={() => setPreviewOpen(true)} disabled={!selectedTemplate} className="rounded-lg border border-gray-700 px-3 py-2 text-sm font-semibold text-gray-200 disabled:opacity-50">Preview Assessment</button>
+                  <button type="button" onClick={openInviteModal} disabled={!selectedTemplate} className="rounded-lg border border-accent/40 px-3 py-2 text-sm font-semibold text-accent disabled:opacity-50">Generate Invite Link</button>
                 </div>
               </div>
               {saveDisabledReason && <p className="mt-2 text-xs text-gray-500">Save: {saveDisabledReason}</p>}
@@ -605,6 +657,28 @@ export function AssessmentTemplates() {
                   <div className="space-y-1 text-xs text-gray-500">
                     {archiveDisabledReason && <p>Archive: {archiveDisabledReason}</p>}
                     {defaultDisabledReason && <p>Default: {defaultDisabledReason}</p>}
+                  </div>
+                )}
+
+                {selectedInviteLinks.length > 0 && (
+                  <div className="rounded-lg border border-gray-800">
+                    <div className="border-b border-gray-800 px-4 py-3">
+                      <h3 className="font-semibold text-gray-100">Invite Links</h3>
+                    </div>
+                    <div className="divide-y divide-gray-800">
+                      {selectedInviteLinks.slice(0, 5).map(link => {
+                        const url = `${PUBLIC_ASSESSMENT_ORIGIN}/a/${selectedTemplate.slug}?ref=${link.invite_code}`;
+                        return (
+                          <div key={link.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+                            <div>
+                              <p className="text-sm font-medium text-gray-200">{link.creator_name}</p>
+                              <p className="text-xs text-gray-500">{link.invite_code}{link.creator_email ? ` - ${link.creator_email}` : ''}</p>
+                            </div>
+                            <button type="button" onClick={() => copyInviteUrl(url)} className="rounded-lg border border-gray-700 px-3 py-1.5 text-sm text-gray-300">Copy URL</button>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
 
@@ -757,6 +831,32 @@ export function AssessmentTemplates() {
           </form>
         </aside>
       </div>
+
+      {inviteModalOpen && selectedTemplate && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-950/80 px-4">
+          <div className="w-full max-w-lg rounded-lg border border-gray-800 bg-surface p-5 shadow-xl">
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <div>
+                <h2 className="font-display text-xl font-semibold text-gray-100">Generate Invite Link</h2>
+                <p className="mt-1 text-xs text-gray-500">Template: {selectedTemplate.name}</p>
+              </div>
+              <button type="button" onClick={() => setInviteModalOpen(false)} className="rounded-lg border border-gray-700 px-3 py-1.5 text-sm text-gray-300">Close</button>
+            </div>
+            <form onSubmit={createInviteLink} className="space-y-3">
+              <input value={inviteForm.creatorName} onChange={e => setInviteForm(current => ({ ...current, creatorName: e.target.value }))} placeholder="Creator name" required className="w-full rounded-lg border border-gray-700 bg-surface-2 px-3 py-2 text-sm text-gray-100" />
+              <input type="email" value={inviteForm.creatorEmail} onChange={e => setInviteForm(current => ({ ...current, creatorEmail: e.target.value }))} placeholder="Email optional" className="w-full rounded-lg border border-gray-700 bg-surface-2 px-3 py-2 text-sm text-gray-100" />
+              <textarea value={inviteForm.notes} onChange={e => setInviteForm(current => ({ ...current, notes: e.target.value }))} rows={3} placeholder="Notes" className="w-full resize-none rounded-lg border border-gray-700 bg-surface-2 px-3 py-2 text-sm text-gray-100" />
+              <button type="submit" disabled={saving || !inviteForm.creatorName.trim()} className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-gray-950 disabled:opacity-50">Create Invite</button>
+            </form>
+            {generatedInviteUrl && (
+              <div className="mt-4 rounded-lg border border-accent/30 bg-accent/10 p-3">
+                <p className="break-all text-sm text-gray-100">{generatedInviteUrl}</p>
+                <button type="button" onClick={() => copyInviteUrl(generatedInviteUrl)} className="mt-3 rounded-lg border border-accent/40 px-3 py-1.5 text-sm text-accent">Copy</button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {previewOpen && (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-gray-950/85 px-4 py-8">

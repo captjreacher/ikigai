@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   getCreatorProfile,
@@ -149,6 +149,8 @@ export function CreatorProfileView() {
   const [reports, setReports] = useState<CreatorReport[]>([]);
   const [notes, setNotes] = useState<CreatorNote[]>([]);
   const [events, setEvents] = useState<CreatorStatusEvent[]>([]);
+  const [assessmentTemplateFilter, setAssessmentTemplateFilter] = useState('');
+  const [assessmentCreatorFilter, setAssessmentCreatorFilter] = useState('');
   const [loading, setLoading] = useState(true);
   const [noteText, setNoteText] = useState('');
   const [statusLoading, setStatusLoading] = useState('');
@@ -212,6 +214,24 @@ export function CreatorProfileView() {
   ];
   const latestDna = dnaProfiles[0];
   const latestReport = reports[0];
+  const templateNameFor = (assessment: CreatorAssessment): string => (
+    assessment.assessment_snapshot?.template_name
+    ?? assessment.template_slug
+    ?? 'Default Creator Assessment'
+  );
+  const templateFilterOptions = useMemo(
+    () => Array.from(new Set(assessments.map(templateNameFor))).sort(),
+    [assessments]
+  );
+  const creatorFilterOptions = useMemo(
+    () => Array.from(new Set(assessments.map(a => a.creator_name).filter((value): value is string => Boolean(value)))).sort(),
+    [assessments]
+  );
+  const visibleAssessments = useMemo(() => assessments.filter(assessment => {
+    const templateMatches = !assessmentTemplateFilter || templateNameFor(assessment) === assessmentTemplateFilter;
+    const creatorMatches = !assessmentCreatorFilter || assessment.creator_name === assessmentCreatorFilter;
+    return templateMatches && creatorMatches;
+  }), [assessments, assessmentCreatorFilter, assessmentTemplateFilter]);
 
   return (
     <div className="space-y-8">
@@ -366,19 +386,47 @@ export function CreatorProfileView() {
 
           {/* Assessments */}
           <div className="bg-surface border border-gray-800 rounded-xl p-5">
-            <h2 className="font-display font-semibold text-lg mb-3">Assessment History ({assessments.length})</h2>
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+              <h2 className="font-display font-semibold text-lg">Assessment History ({visibleAssessments.length})</h2>
+              <div className="flex flex-wrap gap-2">
+                <select value={assessmentTemplateFilter} onChange={e => setAssessmentTemplateFilter(e.target.value)} className="rounded-lg border border-gray-700 bg-surface-2 px-3 py-2 text-xs text-gray-100">
+                  <option value="">All templates</option>
+                  {templateFilterOptions.map(templateName => <option key={templateName} value={templateName}>{templateName}</option>)}
+                </select>
+                <select value={assessmentCreatorFilter} onChange={e => setAssessmentCreatorFilter(e.target.value)} className="rounded-lg border border-gray-700 bg-surface-2 px-3 py-2 text-xs text-gray-100">
+                  <option value="">All invite creators</option>
+                  {creatorFilterOptions.map(creatorName => <option key={creatorName} value={creatorName}>{creatorName}</option>)}
+                </select>
+              </div>
+            </div>
             {assessments.length === 0 ? (
               <p className="text-sm text-gray-600">No assessments yet.</p>
+            ) : visibleAssessments.length === 0 ? (
+              <p className="text-sm text-gray-600">No assessments match the current filters.</p>
             ) : (
-              <div className="space-y-2">
-                {assessments.map(a => (
-                  <div key={a.id} className="bg-surface-2 rounded-lg px-4 py-3">
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-300">Score: {a.agency_opportunity_score ?? '-'}</span>
-                      <span className="text-xs text-gray-500">{new Date(a.created_at!).toLocaleDateString()}</span>
-                    </div>
-                  </div>
-                ))}
+              <div className="overflow-x-auto rounded-lg border border-gray-800">
+                <table className="w-full text-left text-sm">
+                  <thead className="border-b border-gray-800 text-xs uppercase tracking-wide text-gray-500">
+                    <tr>
+                      <th className="px-4 py-3 font-medium">Date</th>
+                      <th className="px-4 py-3 font-medium">Score</th>
+                      <th className="px-4 py-3 font-medium">Template</th>
+                      <th className="px-4 py-3 font-medium">Invite Code</th>
+                      <th className="px-4 py-3 font-medium">Creator Name</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {visibleAssessments.map(a => (
+                      <tr key={a.id} className="border-b border-gray-800/60 bg-surface-2 last:border-0">
+                        <td className="px-4 py-3 text-xs text-gray-500">{new Date(a.created_at!).toLocaleDateString()}</td>
+                        <td className="px-4 py-3 text-gray-300">{a.agency_opportunity_score ?? '-'}</td>
+                        <td className="px-4 py-3 text-gray-300">{templateNameFor(a)}</td>
+                        <td className="px-4 py-3 text-gray-300">{a.invite_code ?? '-'}</td>
+                        <td className="px-4 py-3 text-gray-300">{a.creator_name ?? '-'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
           </div>

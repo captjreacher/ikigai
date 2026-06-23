@@ -12,6 +12,7 @@ import type {
   CreatorAssessmentTemplate,
   CreatorAssessmentTemplateQuestion,
   CreatorAssessmentTemplateItem,
+  CreatorAssessmentInviteLink,
   CreatorQuestion,
   AssessmentQuestionType,
   ReportData,
@@ -27,6 +28,7 @@ type TemplateQuestionRow = CreatorAssessmentTemplateQuestion & {
 
 type TemplateQuestionJoinRow = Omit<CreatorAssessmentTemplateQuestion, 'question'>;
 type TemplateItemRow = Omit<CreatorAssessmentTemplateItem, 'question'>;
+type AssessmentInviteContext = Pick<CreatorAssessmentInviteLink, 'id' | 'invite_code' | 'creator_name'>;
 
 type CreatorProfileUpsertPayload = Pick<
   CreatorProfile,
@@ -99,6 +101,12 @@ function respondentSnapshot(responses: AssessmentResponses): Record<string, unkn
     consent: Boolean(responses.consent),
     mailing_list_opt_out: Boolean(responses.mailing_list_opt_out),
   };
+}
+
+function randomInviteCode(): string {
+  const bytes = new Uint8Array(8);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, byte => byte.toString(36).padStart(2, '0')).join('').slice(0, 12);
 }
 
 async function findExistingCreatorProfile(
@@ -301,9 +309,26 @@ export async function getAssessmentTemplateBySlug(slug: string): Promise<Creator
   return flattenTemplate(template, questionRows, itemRows);
 }
 
+export async function getAssessmentInviteLink(inviteCode: string): Promise<CreatorAssessmentInviteLink | null> {
+  const code = inviteCode.trim();
+  if (!code) return null;
+
+  const { data, error } = await (supabase as any)
+    .from('creator_assessment_links')
+    .select('*')
+    .eq('invite_code', code)
+    .eq('is_active', true)
+    .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`)
+    .maybeSingle();
+
+  if (error) throw new Error(`Failed to load invite link: ${error.message}`);
+  return (data ?? null) as CreatorAssessmentInviteLink | null;
+}
+
 export async function submitAssessment(
   responses: AssessmentResponses,
-  template?: CreatorAssessmentRuntimeTemplate | null
+  template?: CreatorAssessmentRuntimeTemplate | null,
+  invite?: AssessmentInviteContext | null
 ): Promise<{
   profile: CreatorProfile;
   assessment: CreatorAssessment;
@@ -326,6 +351,9 @@ export async function submitAssessment(
         template_slug: runtimeTemplate.slug,
         template_name: runtimeTemplate.name,
         template_description: runtimeTemplate.description,
+        invite_link_id: invite?.id ?? null,
+        invite_code: invite?.invite_code ?? null,
+        creator_name: invite?.creator_name ?? null,
         captured_at: new Date().toISOString(),
         question_snapshot: includedQuestions,
       }
@@ -367,6 +395,9 @@ export async function submitAssessment(
       p_creator_profile_id: profileId,
       p_template_id: uuidOrNull(runtimeTemplate?.id),
       p_template_slug: runtimeTemplate?.slug ?? null,
+      p_invite_link_id: uuidOrNull(invite?.id),
+      p_invite_code: invite?.invite_code ?? null,
+      p_creator_name: invite?.creator_name ?? null,
       p_responses: responses,
       p_answers: responses,
       p_respondent: respondent,
@@ -462,7 +493,15 @@ export async function submitAssessment(
   await supabase.from('creator_status_events').insert({
     creator_profile_id: profileId,
     event_type: 'assessment_completed',
-    details: { assessment_id: assessment.id, dna_profile_id: dnaProfile.id, report_slug: slug },
+    details: {
+      assessment_id: assessment.id,
+      dna_profile_id: dnaProfile.id,
+      report_slug: slug,
+      template_id: runtimeTemplate?.id ?? null,
+      template_slug: runtimeTemplate?.slug ?? null,
+      invite_code: invite?.invite_code ?? null,
+      creator_name: invite?.creator_name ?? null,
+    },
   });
 
   return {
@@ -695,6 +734,19 @@ export async function addCreatorNote(profileId: string, note: string): Promise<C
     .select()
     .single();
   return data as CreatorNote | null;
+}
+
+export async function getAssessmentInviteLinks(templateId?: string): Promise<CreatorAssessmentInviteLink[]> {
+  let query = (supabase as any)
+    .from('creator_assessment_links')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (templateId) query = query.eq('template_id', templateId);
+
+  const { data, error } = await query;
+  if (error) throw new Error(`Failed to load invite links: ${error.message}`);
+  return (data ?? []) as CreatorAssessmentInviteLink[];
 }
 
 export async function getCreatorDnaProfilesForProfile(profileId: string): Promise<CreatorDnaProfile[]> {
@@ -1035,6 +1087,29 @@ export async function createAssessmentTemplate(input: {
   }
 
   return template as CreatorAssessmentTemplate;
+}
+
+export async function createAssessmentInviteLink(input: {
+  templateId: string;
+  creatorName: string;
+  creatorEmail?: string | null;
+  notes?: string | null;
+}): Promise<CreatorAssessmentInviteLink> {
+  const { data, error } = await (supabase as any)
+    .from('creator_assessment_links')
+    .insert({
+      template_id: input.templateId,
+      invite_code: randomInviteCode(),
+      creator_name: input.creatorName.trim(),
+      creator_email: normalizeEmail(input.creatorEmail),
+      notes: normalizeNullableText(input.notes),
+      is_active: true,
+    })
+    .select()
+    .single();
+
+  if (error) throw new Error(`Failed to create invite link: ${error.message}`);
+  return data as CreatorAssessmentInviteLink;
 }
 
 export async function updateAssessmentTemplate(

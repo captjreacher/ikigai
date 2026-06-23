@@ -180,11 +180,26 @@ export interface CreatorAssessmentRuntimeTemplate extends CreatorAssessmentTempl
   items?: CreatorAssessmentTemplateItem[];
 }
 
+export interface CreatorAssessmentInviteLink {
+  id: string;
+  template_id: string;
+  invite_code: string;
+  creator_name: string;
+  creator_email: string | null;
+  notes: string | null;
+  is_active: boolean;
+  created_at: string;
+  expires_at: string | null;
+}
+
 export interface CreatorAssessment {
   id: string;
   creator_profile_id: string;
   template_id: string | null;
   template_slug: string | null;
+  invite_link_id: string | null;
+  invite_code: string | null;
+  creator_name: string | null;
   created_at: string;
   responses: AssessmentResponses;
   answers: AssessmentResponses | null;

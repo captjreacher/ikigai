@@ -1,10 +1,16 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { getAssessmentTemplateBySlug, getDefaultAssessmentTemplate, submitAssessment } from '@/lib/creators-api';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import {
+  getAssessmentInviteLink,
+  getAssessmentTemplateBySlug,
+  getDefaultAssessmentTemplate,
+  submitAssessment,
+} from '@/lib/creators-api';
 import type {
   AssessmentQuestionOption,
   AssessmentResponses,
   CreatorAssessmentQuestion,
+  CreatorAssessmentInviteLink,
   CreatorAssessmentRuntimeTemplate,
 } from '@/types/creator';
 
@@ -443,6 +449,17 @@ function normalizeRuntimeTemplate(template: CreatorAssessmentRuntimeTemplate): C
   };
 }
 
+function refFromLocation(routerSearch: string): string {
+  const routerRef = new URLSearchParams(routerSearch).get('ref');
+  if (routerRef) return routerRef;
+
+  const pageRef = new URLSearchParams(window.location.search).get('ref');
+  if (pageRef) return pageRef;
+
+  const [, hashSearch = ''] = window.location.hash.split('?');
+  return new URLSearchParams(hashSearch).get('ref') ?? '';
+}
+
 function AssessmentNotFound() {
   return (
     <div className="min-h-[100dvh] w-full px-4 py-10">
@@ -458,10 +475,13 @@ function AssessmentNotFound() {
 
 export function AssessmentWizard({ templateSlug }: { templateSlug?: string }) {
   const params = useParams<{ templateSlug?: string }>();
+  const location = useLocation();
   const resolvedTemplateSlug = templateSlug ?? params.templateSlug;
+  const inviteRef = refFromLocation(location.search);
   const [step, setStep] = useState(0);
   const [data, setData] = useState<AssessmentResponses>(INITIAL);
   const [template, setTemplate] = useState<CreatorAssessmentRuntimeTemplate | null>(null);
+  const [inviteLink, setInviteLink] = useState<CreatorAssessmentInviteLink | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -474,20 +494,36 @@ export function AssessmentWizard({ templateSlug }: { templateSlug?: string }) {
     setLoading(true);
     setNotFound(false);
 
-    const loadTemplate = resolvedTemplateSlug
-      ? getAssessmentTemplateBySlug(resolvedTemplateSlug)
-      : getDefaultAssessmentTemplate();
+    const load = async () => {
+      const runtimeTemplate = resolvedTemplateSlug
+        ? await getAssessmentTemplateBySlug(resolvedTemplateSlug)
+        : await getDefaultAssessmentTemplate();
 
-    loadTemplate
-      .then(runtimeTemplate => {
         if (!mounted) return;
         if (!runtimeTemplate && resolvedTemplateSlug) {
           setTemplate(null);
           setNotFound(true);
           return;
         }
+
         const nextTemplate = normalizeRuntimeTemplate(runtimeTemplate ?? FALLBACK_TEMPLATE);
         setTemplate(nextTemplate);
+
+        if (inviteRef) {
+          try {
+            const invite = await getAssessmentInviteLink(inviteRef);
+            if (mounted && invite?.template_id === nextTemplate.id) {
+              setInviteLink(invite);
+            } else if (mounted) {
+              setInviteLink(null);
+            }
+          } catch {
+            if (mounted) setInviteLink(null);
+          }
+        } else {
+          setInviteLink(null);
+        }
+
         setData(current => {
           const next = { ...current };
           for (const question of nextTemplate.questions) {
@@ -499,7 +535,9 @@ export function AssessmentWizard({ templateSlug }: { templateSlug?: string }) {
           }
           return next;
         });
-      })
+    };
+
+    load()
       .catch(() => {
         if (!mounted) return;
         if (resolvedTemplateSlug) {
@@ -516,7 +554,7 @@ export function AssessmentWizard({ templateSlug }: { templateSlug?: string }) {
     return () => {
       mounted = false;
     };
-  }, [resolvedTemplateSlug]);
+  }, [resolvedTemplateSlug, inviteRef]);
 
   const sections = useMemo(() => {
     const includedItems = (template?.items ?? []).filter(item => item.is_included);
@@ -683,7 +721,7 @@ export function AssessmentWizard({ templateSlug }: { templateSlug?: string }) {
               .map(question => ({ ...question, options: activeOptions(question) })),
           }
         : template;
-      const result = await submitAssessment(sanitizedData, visibleTemplate);
+      const result = await submitAssessment(sanitizedData, visibleTemplate, inviteLink);
       navigate(`/report/${result.report.report_slug}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Something went wrong');
@@ -946,6 +984,9 @@ export function AssessmentWizard({ templateSlug }: { templateSlug?: string }) {
         <div className="text-center mb-6 sm:mb-10">
           <h1 className="font-display text-3xl font-bold mb-2">Find Your Vertical</h1>
           <p className="text-gray-500 text-sm">Creator Vertical Assessment</p>
+          {inviteLink && (
+            <p className="mt-2 text-xs text-accent">Invite: {inviteLink.creator_name}</p>
+          )}
         </div>
 
         <div className="mx-auto mb-6 flex max-w-xl gap-2 overflow-x-auto pb-1 sm:mb-10">
