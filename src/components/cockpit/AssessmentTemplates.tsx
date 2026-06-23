@@ -584,8 +584,8 @@ export function AssessmentTemplates() {
     if (question.question_type === 'boolean') {
       return (
         <div className="mt-3 flex gap-2">
-          <button type="button" disabled className="rounded-full border border-gray-300 px-5 py-2 text-sm text-gray-500">{String(question.config.trueLabel ?? 'Yes')}</button>
-          <button type="button" disabled className="rounded-full border border-gray-300 px-5 py-2 text-sm text-gray-500">{String(question.config.falseLabel ?? 'No')}</button>
+          <button type="button" disabled className="btn-subtle rounded-full px-5 py-2 text-gray-500">{String(question.config.trueLabel ?? 'Yes')}</button>
+          <button type="button" disabled className="btn-subtle rounded-full px-5 py-2 text-gray-500">{String(question.config.falseLabel ?? 'No')}</button>
         </div>
       );
     }
@@ -594,43 +594,46 @@ export function AssessmentTemplates() {
       <div className="mt-3 flex flex-wrap gap-2">
         {question.options.map((option, index) => {
           const label = typeof option === 'string' ? option : option.label;
-          return <button type="button" disabled key={`${label}-${index}`} className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-500">{label}</button>;
+          return <button type="button" disabled key={`${label}-${index}`} className="btn-subtle text-gray-500">{label}</button>;
         })}
         {question.options.length === 0 && <span className="text-xs text-gray-600">No options configured.</span>}
       </div>
     );
   };
 
-  if (loading) return <p className="text-sm text-gray-500">Loading Assessment Templates…</p>;
+  if (loading) return <p className="text-sm text-gray-500">Loading Assessment Templates...</p>;
 
   return (
-    <div className="space-y-6">
-      <div>
-        <p className="text-sm text-gray-500">Settings</p>
-        <h1 className="font-display text-2xl font-bold text-gray-900">Assessment Templates</h1>
-      </div>
+    <div className="cockpit-page">
+      <header className="cockpit-page-header">
+        <div>
+          <p className="cockpit-eyebrow">Settings</p>
+          <h1 className="cockpit-title">Assessment Templates</h1>
+          <p className="cockpit-subtitle">Manage assessment templates, question banks, and invite-only assessment links.</p>
+        </div>
+      </header>
 
       {error && <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
       {success && <div className="rounded-lg border border-success/30 bg-success/10 px-4 py-3 text-sm text-success">{success}</div>}
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
         <section className="space-y-4">
-          <div className="overflow-hidden rounded-lg border border-gray-200 bg-surface">
-            <div className="border-b border-gray-200 p-4">
+          <div className="cockpit-panel">
+            <div className="cockpit-panel-header">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <h2 className="font-semibold text-gray-900">Template Editor</h2>
+                  <h2 className="cockpit-section-title">Template Editor</h2>
                   <p className="text-xs text-gray-500">Templates contain ordered section headings and questions.</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <select value={selectedTemplate?.id ?? ''} onChange={e => selectTemplate(e.target.value)} className="rounded-lg border border-gray-300 bg-surface-2 px-3 py-2 text-sm text-gray-900">
+                  <select value={selectedTemplate?.id ?? ''} onChange={e => selectTemplate(e.target.value)} className="field-control">
                     {templates.map(template => (
                       <option key={template.id} value={template.id}>{template.name}{template.is_default ? ' (default)' : ''}{template.is_active ? '' : ' (archived)'}</option>
                     ))}
                   </select>
-                  <button type="button" onClick={saveTemplate} disabled={Boolean(saveDisabledReason)} title={saveDisabledReason || undefined} className="rounded-lg bg-accent px-3 py-2 text-sm font-semibold text-white disabled:opacity-50">Save Template Changes</button>
-                  <button type="button" onClick={() => setPreviewOpen(true)} disabled={!selectedTemplate} className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-800 disabled:opacity-50">Preview Assessment</button>
-                  <button type="button" onClick={openInviteModal} disabled={!selectedTemplate} className="rounded-lg border border-accent/40 px-3 py-2 text-sm font-semibold text-accent disabled:opacity-50">Generate Invite Link</button>
+                  <button type="button" onClick={saveTemplate} disabled={Boolean(saveDisabledReason)} title={saveDisabledReason || undefined} className="btn-primary px-3">Save Template Changes</button>
+                  <button type="button" onClick={() => setPreviewOpen(true)} disabled={!selectedTemplate} className="btn-secondary px-3">Preview Assessment</button>
+                  <button type="button" onClick={openInviteModal} disabled={!selectedTemplate} className="btn-secondary px-3">Generate Invite Link</button>
                 </div>
               </div>
               {saveDisabledReason && <p className="mt-2 text-xs text-gray-500">Save: {saveDisabledReason}</p>}
@@ -641,9 +644,9 @@ export function AssessmentTemplates() {
             ) : (
               <div className="space-y-5 p-4">
                 <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_1fr_1.5fr]">
-                  <input value={templateName} onChange={e => setTemplateName(e.target.value)} placeholder="Template name" className="rounded-lg border border-gray-300 bg-surface-2 px-3 py-2 text-sm text-gray-900" />
-                  <input value={templateSlug} onChange={e => setTemplateSlug(normalizeKey(e.target.value).replace(/_/g, '-'))} placeholder="URL slug" className="rounded-lg border border-gray-300 bg-surface-2 px-3 py-2 text-sm text-gray-900" />
-                  <input value={templateDescription} onChange={e => setTemplateDescription(e.target.value)} placeholder="Description" className="rounded-lg border border-gray-300 bg-surface-2 px-3 py-2 text-sm text-gray-900" />
+                  <input value={templateName} onChange={e => setTemplateName(e.target.value)} placeholder="Template name" className="field-control" />
+                  <input value={templateSlug} onChange={e => setTemplateSlug(normalizeKey(e.target.value).replace(/_/g, '-'))} placeholder="URL slug" className="field-control" />
+                  <input value={templateDescription} onChange={e => setTemplateDescription(e.target.value)} placeholder="Description" className="field-control" />
                 </div>
                 <p className="text-xs text-gray-500">Invite URL base: /a/{templateSlug || selectedTemplate.slug}. Share generated invite links only.</p>
 
@@ -651,13 +654,13 @@ export function AssessmentTemplates() {
                   <span className={`rounded-full px-3 py-1 text-xs font-semibold ${selectedTemplate.is_active ? 'bg-success/10 text-success' : 'bg-warn/10 text-warn'}`}>{selectedTemplate.is_active ? 'Active' : 'Archived'}</span>
                   {selectedTemplate.is_default && <span className="rounded-full bg-accent/10 px-3 py-1 text-xs font-semibold text-accent">Current Default</span>}
                   {isDirty && <span className="rounded-full bg-warn/10 px-3 py-1 text-xs font-semibold text-warn">Draft changes unsaved</span>}
-                  <button type="button" onClick={addHeading} disabled={!selectedTemplate || saving} title={!selectedTemplate ? 'Select or create a template before adding a heading.' : saving ? 'Template update already in progress.' : undefined} className="rounded-lg border border-accent/40 px-3 py-1.5 text-sm text-accent disabled:opacity-50">Add Section Heading</button>
+                  <button type="button" onClick={addHeading} disabled={!selectedTemplate || saving} title={!selectedTemplate ? 'Select or create a template before adding a heading.' : saving ? 'Template update already in progress.' : undefined} className="btn-subtle text-accent">Add Section Heading</button>
                   {selectedTemplate.is_active ? (
-                    <button type="button" onClick={() => setTemplateStatus(false)} disabled={Boolean(archiveDisabledReason)} title={archiveDisabledReason || undefined} className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-700 disabled:opacity-50">Archive Template</button>
+                    <button type="button" onClick={() => setTemplateStatus(false)} disabled={Boolean(archiveDisabledReason)} title={archiveDisabledReason || undefined} className="btn-subtle">Archive Template</button>
                   ) : (
-                    <button type="button" onClick={() => setTemplateStatus(true)} disabled={saving} title={saving ? 'Template update already in progress.' : undefined} className="rounded-lg border border-accent/40 px-3 py-1.5 text-sm text-accent disabled:opacity-50">Restore Template</button>
+                    <button type="button" onClick={() => setTemplateStatus(true)} disabled={saving} title={saving ? 'Template update already in progress.' : undefined} className="btn-subtle text-accent">Restore Template</button>
                   )}
-                  <button type="button" onClick={makeDefault} disabled={Boolean(defaultDisabledReason)} title={defaultDisabledReason || undefined} className="rounded-lg bg-accent px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-50">Set as Default</button>
+                  <button type="button" onClick={makeDefault} disabled={Boolean(defaultDisabledReason)} title={defaultDisabledReason || undefined} className="btn-primary px-3 py-1.5">Set as Default</button>
                 </div>
                 {(archiveDisabledReason || defaultDisabledReason) && (
                   <div className="space-y-1 text-xs text-gray-500">
@@ -668,8 +671,8 @@ export function AssessmentTemplates() {
 
                 {selectedInviteLinks.length > 0 && (
                   <div className="rounded-lg border border-gray-200">
-                    <div className="border-b border-gray-200 px-4 py-3">
-                      <h3 className="font-semibold text-gray-900">Invite Links</h3>
+                    <div className="cockpit-panel-header">
+                      <h3 className="cockpit-section-title">Invite Links</h3>
                     </div>
                     <div className="divide-y divide-gray-200">
                       {selectedInviteLinks.slice(0, 5).map(link => {
@@ -680,7 +683,7 @@ export function AssessmentTemplates() {
                               <p className="text-sm font-medium text-gray-800">{link.creator_name}</p>
                               <p className="text-xs text-gray-500">{link.invite_code}{link.creator_email ? ` - ${link.creator_email}` : ''}</p>
                             </div>
-                            <button type="button" onClick={() => copyInviteUrl(url)} className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-700">Copy URL</button>
+                            <button type="button" onClick={() => copyInviteUrl(url)} className="btn-subtle">Copy URL</button>
                           </div>
                         );
                       })}
@@ -690,8 +693,8 @@ export function AssessmentTemplates() {
 
                 <div className="grid grid-cols-1 gap-4 2xl:grid-cols-2">
                   <div className="rounded-lg border border-gray-200">
-                    <div className="border-b border-gray-200 px-4 py-3">
-                      <h3 className="font-semibold text-gray-900">Template Items</h3>
+                    <div className="cockpit-panel-header">
+                      <h3 className="cockpit-section-title">Template Items</h3>
                       <p className="text-xs text-gray-500">Questions sit under the preceding heading. Remove a heading without deleting questions by unchecking/removing the heading row.</p>
                     </div>
                     <div className="divide-y divide-gray-200">
@@ -701,33 +704,33 @@ export function AssessmentTemplates() {
                           <div className="flex items-start gap-3">
                             <input type="checkbox" checked={item.is_included} onChange={() => toggleItem(item)} className="mt-2 accent-accent" />
                             <div className="min-w-0 flex-1 space-y-2">
-                              <input value={item.title ?? ''} onChange={e => updateItem(item.id, { title: e.target.value })} className="w-full rounded-lg border border-accent/30 bg-surface-2 px-3 py-2 font-semibold text-gray-900" />
-                              <textarea value={item.description ?? ''} onChange={e => updateItem(item.id, { description: e.target.value })} rows={2} placeholder="Heading description / help text" className="w-full resize-none rounded-lg border border-gray-300 bg-surface-2 px-3 py-2 text-sm text-gray-700" />
+                              <input value={item.title ?? ''} onChange={e => updateItem(item.id, { title: e.target.value })} className="field-control w-full font-semibold" />
+                              <textarea value={item.description ?? ''} onChange={e => updateItem(item.id, { description: e.target.value })} rows={2} placeholder="Heading description / help text" className="field-control w-full resize-none" />
                               <p className="text-xs uppercase tracking-wide text-accent">Section Heading</p>
                             </div>
                             <div className="flex shrink-0 flex-col gap-1">
-                              <button type="button" onClick={() => toggleHeadingCollapsed(item.id)} className="rounded border border-gray-300 px-2 py-1 text-xs text-gray-700">{collapsedHeadings[item.id] ? 'Expand' : 'Collapse'}</button>
-                              <button type="button" onClick={() => moveItem(item, -1)} className="rounded border border-gray-300 px-2 py-1 text-xs text-gray-700">Up</button>
-                              <button type="button" onClick={() => moveItem(item, 1)} className="rounded border border-gray-300 px-2 py-1 text-xs text-gray-700">Down</button>
-                              <button type="button" onClick={() => duplicateSection(item)} className="rounded border border-gray-300 px-2 py-1 text-xs text-gray-700">Duplicate</button>
-                              <button type="button" onClick={() => toggleItem(item)} className="rounded border border-gray-300 px-2 py-1 text-xs text-gray-700">Remove</button>
+                              <button type="button" onClick={() => toggleHeadingCollapsed(item.id)} className="btn-subtle px-2 py-1 text-xs">{collapsedHeadings[item.id] ? 'Expand' : 'Collapse'}</button>
+                              <button type="button" onClick={() => moveItem(item, -1)} className="btn-subtle px-2 py-1 text-xs">Up</button>
+                              <button type="button" onClick={() => moveItem(item, 1)} className="btn-subtle px-2 py-1 text-xs">Down</button>
+                              <button type="button" onClick={() => duplicateSection(item)} className="btn-subtle px-2 py-1 text-xs">Duplicate</button>
+                              <button type="button" onClick={() => toggleItem(item)} className="btn-subtle px-2 py-1 text-xs">Remove</button>
                             </div>
                           </div>
                         </div>
                       ) : (
-                        <div key={item.id} className={`p-4 ${item.question?.is_active ? '' : 'bg-warn/5'} ${hiddenByCollapse ? 'hidden' : ''}`}>
+                        <div key={item.id} className={`p-4 transition-colors hover:bg-orange-50/40 ${item.question?.is_active ? '' : 'bg-warn/5'} ${hiddenByCollapse ? 'hidden' : ''}`}>
                           <div className="flex items-start gap-3">
                             <input type="checkbox" checked={item.is_included} onChange={() => toggleItem(item)} className="mt-1 accent-accent" />
                             <div className="min-w-0 flex-1">
                               <p className="font-medium text-gray-900">{item.question?.question_text ?? 'Missing question'}</p>
-                              <p className="mt-1 text-xs text-gray-500">{item.question?.section} Â· {item.question?.question_type}</p>
+                              <p className="mt-1 text-xs text-gray-500">{item.question?.section} / {item.question?.question_type}</p>
                               {item.question && !item.question.is_active && <p className="mt-2 text-xs text-warn">Archived question. Remove it or restore it from the bank.</p>}
                             </div>
                             <div className="flex shrink-0 flex-col gap-1">
-                              <button type="button" onClick={() => moveItem(item, -1)} className="rounded border border-gray-300 px-2 py-1 text-xs text-gray-700">Up</button>
-                              <button type="button" onClick={() => moveItem(item, 1)} className="rounded border border-gray-300 px-2 py-1 text-xs text-gray-700">Down</button>
-                              <button type="button" onClick={() => duplicateQuestionPlacement(item)} className="rounded border border-gray-300 px-2 py-1 text-xs text-gray-700">Duplicate</button>
-                              <button type="button" onClick={() => toggleItem(item)} className="rounded border border-gray-300 px-2 py-1 text-xs text-gray-700">Remove</button>
+                              <button type="button" onClick={() => moveItem(item, -1)} className="btn-subtle px-2 py-1 text-xs">Up</button>
+                              <button type="button" onClick={() => moveItem(item, 1)} className="btn-subtle px-2 py-1 text-xs">Down</button>
+                              <button type="button" onClick={() => duplicateQuestionPlacement(item)} className="btn-subtle px-2 py-1 text-xs">Duplicate</button>
+                              <button type="button" onClick={() => toggleItem(item)} className="btn-subtle px-2 py-1 text-xs">Remove</button>
                             </div>
                           </div>
                         </div>
@@ -736,18 +739,18 @@ export function AssessmentTemplates() {
                   </div>
 
                   <div className="rounded-lg border border-gray-200">
-                    <div className="border-b border-gray-200 px-4 py-3">
-                      <h3 className="font-semibold text-gray-900">Available Active Questions</h3>
+                    <div className="cockpit-panel-header">
+                      <h3 className="cockpit-section-title">Available Active Questions</h3>
                       <p className="text-xs text-gray-500">Archived questions are not selectable for new inclusion unless restored.</p>
                     </div>
                     <div className="divide-y divide-gray-200">
                       {activeQuestions.length === 0 && <p className="p-4 text-sm text-gray-500">No active questions available.</p>}
                       {draftItems.filter(item => item.item_type === 'question' && item.question?.is_active && !item.is_included).map(item => (
-                        <label key={item.id} className="flex cursor-pointer items-start gap-3 p-4">
+                        <label key={item.id} className="flex cursor-pointer items-start gap-3 p-4 transition-colors hover:bg-orange-50/40">
                           <input type="checkbox" checked={item.is_included} onChange={() => toggleItem(item)} className="mt-1 accent-accent" />
                           <span className="min-w-0 flex-1">
                             <span className="block font-medium text-gray-900">{item.question?.question_text}</span>
-                            <span className="mt-1 block text-xs text-gray-500">{item.question?.section} Â· {item.question?.question_type}</span>
+                            <span className="mt-1 block text-xs text-gray-500">{item.question?.section} / {item.question?.question_type}</span>
                           </span>
                         </label>
                       ))}
@@ -761,43 +764,43 @@ export function AssessmentTemplates() {
             )}
           </div>
 
-          <div className="overflow-hidden rounded-lg border border-gray-200 bg-surface">
-            <div className="border-b border-gray-200 p-4">
-              <h2 className="font-semibold text-gray-900">Create New Template</h2>
+          <div className="cockpit-panel">
+            <div className="cockpit-panel-header">
+              <h2 className="cockpit-section-title">Create New Template</h2>
               <p className="text-xs text-gray-500">New templates start archived/non-default. Restore them when ready, then set default after at least one active question is included.</p>
             </div>
             <form onSubmit={createTemplate} className="grid grid-cols-1 gap-3 p-4 md:grid-cols-[1fr_1fr_1fr_220px_auto]">
-              <input value={templateForm.name} onChange={e => setTemplateForm(current => ({ ...current, name: e.target.value }))} placeholder="Template name" required className="rounded-lg border border-gray-300 bg-surface-2 px-3 py-2 text-sm text-gray-900" />
-              <input value={templateForm.slug} onChange={e => setTemplateForm(current => ({ ...current, slug: normalizeKey(e.target.value).replace(/_/g, '-') }))} placeholder="URL slug" className="rounded-lg border border-gray-300 bg-surface-2 px-3 py-2 text-sm text-gray-900" />
-              <input value={templateForm.description} onChange={e => setTemplateForm(current => ({ ...current, description: e.target.value }))} placeholder="Description" className="rounded-lg border border-gray-300 bg-surface-2 px-3 py-2 text-sm text-gray-900" />
-              <select value={templateForm.duplicateFromTemplateId} onChange={e => setTemplateForm(current => ({ ...current, duplicateFromTemplateId: e.target.value }))} className="rounded-lg border border-gray-300 bg-surface-2 px-3 py-2 text-sm text-gray-900">
+              <input value={templateForm.name} onChange={e => setTemplateForm(current => ({ ...current, name: e.target.value }))} placeholder="Template name" required className="field-control" />
+              <input value={templateForm.slug} onChange={e => setTemplateForm(current => ({ ...current, slug: normalizeKey(e.target.value).replace(/_/g, '-') }))} placeholder="URL slug" className="field-control" />
+              <input value={templateForm.description} onChange={e => setTemplateForm(current => ({ ...current, description: e.target.value }))} placeholder="Description" className="field-control" />
+              <select value={templateForm.duplicateFromTemplateId} onChange={e => setTemplateForm(current => ({ ...current, duplicateFromTemplateId: e.target.value }))} className="field-control">
                 <option value="">Start blank</option>
                 {templates.map(template => <option key={template.id} value={template.id}>Duplicate {template.name}</option>)}
               </select>
-              <button type="button" onClick={() => createTemplate()} disabled={saving} className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">Create Template</button>
+              <button type="button" onClick={() => createTemplate()} disabled={saving} className="btn-primary">Create Template</button>
             </form>
           </div>
 
-          <div className="overflow-hidden rounded-lg border border-gray-200 bg-surface">
-            <div className="border-b border-gray-200 p-4">
-              <h2 className="font-semibold text-gray-900">Question Bank</h2>
+          <div className="cockpit-panel">
+            <div className="cockpit-panel-header">
+              <h2 className="cockpit-section-title">Question Bank</h2>
               <p className="text-xs text-gray-500">Archived questions stay in history and are not available for new templates unless restored.</p>
             </div>
             <div className="divide-y divide-gray-200">
               {[...activeQuestions, ...archivedQuestions].map(question => {
-                const eligibility = deleteEligibility[question.id] ?? { canDelete: false, reason: 'Checking delete safety…' };
+                const eligibility = deleteEligibility[question.id] ?? { canDelete: false, reason: 'Checking delete safety...' };
                 return (
-                  <div key={question.id} className={`p-4 ${question.is_active ? '' : 'bg-warn/5'}`}>
+                  <div key={question.id} className={`p-4 transition-colors hover:bg-orange-50/40 ${question.is_active ? '' : 'bg-warn/5'}`}>
                     <p className="font-medium text-gray-900">{question.question_text}</p>
-                    <p className="mb-3 mt-1 text-xs text-gray-500">{question.question_key} Â· {question.section} Â· {question.question_type}{question.is_active ? '' : ' Â· archived'}</p>
+                    <p className="mb-3 mt-1 text-xs text-gray-500">{question.question_key} / {question.section} / {question.question_type}{question.is_active ? '' : ' / archived'}</p>
                     <div className="flex flex-wrap gap-2">
-                      <button type="button" onClick={() => editQuestion(question)} className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-800">Edit Question</button>
+                      <button type="button" onClick={() => editQuestion(question)} className="btn-subtle">Edit Question</button>
                       {question.is_active ? (
-                        <button type="button" onClick={() => questionAction(question, 'archive')} className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-700">Archive Question</button>
+                        <button type="button" onClick={() => questionAction(question, 'archive')} className="btn-subtle">Archive Question</button>
                       ) : (
-                        <button type="button" onClick={() => questionAction(question, 'restore')} className="rounded-lg border border-accent/40 px-3 py-1.5 text-sm text-accent">Restore Question</button>
+                        <button type="button" onClick={() => questionAction(question, 'restore')} className="btn-subtle text-accent">Restore Question</button>
                       )}
-                      <button type="button" onClick={() => questionAction(question, 'delete')} disabled={!eligibility.canDelete} title={eligibility.reason} className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-700 disabled:opacity-50">Delete Question</button>
+                      <button type="button" onClick={() => questionAction(question, 'delete')} disabled={!eligibility.canDelete} title={eligibility.reason} className="btn-subtle">Delete Question</button>
                       {!eligibility.canDelete && <span className="text-xs text-gray-500">{eligibility.reason}</span>}
                     </div>
                   </div>
@@ -808,8 +811,8 @@ export function AssessmentTemplates() {
           </div>
         </section>
 
-        <aside className="h-fit rounded-lg border border-gray-200 bg-surface p-4">
-          <h2 className="font-semibold text-gray-900">{editingQuestion ? 'Edit Question' : 'Add Question'}</h2>
+        <aside className="h-fit cockpit-card-pad">
+          <h2 className="cockpit-section-title">{editingQuestion ? 'Edit Question' : 'Add Question'}</h2>
           <form onSubmit={submitQuestion} className="mt-4 space-y-3">
             <input value={questionForm.question_text} onChange={e => {
               const question_text = e.target.value;
@@ -817,22 +820,22 @@ export function AssessmentTemplates() {
                 const key = !editingQuestion ? normalizeKey(question_text) : current.question_key;
                 return { ...current, question_text, question_key: key, response_key: !editingQuestion ? key : current.response_key };
               });
-            }} placeholder="Question text" required className="w-full rounded-lg border border-gray-300 bg-surface-2 px-3 py-2 text-sm text-gray-900" />
-            <textarea value={questionForm.help_text} onChange={e => setQuestionForm(current => ({ ...current, help_text: e.target.value }))} placeholder="Help text" rows={3} className="w-full resize-none rounded-lg border border-gray-300 bg-surface-2 px-3 py-2 text-sm text-gray-900" />
+            }} placeholder="Question text" required className="w-full field-control" />
+            <textarea value={questionForm.help_text} onChange={e => setQuestionForm(current => ({ ...current, help_text: e.target.value }))} placeholder="Help text" rows={3} className="w-full resize-none field-control" />
             <div className="grid grid-cols-2 gap-2">
-              <input value={questionForm.question_key} onChange={e => setQuestionForm(current => ({ ...current, question_key: normalizeKey(e.target.value) }))} disabled={Boolean(editingQuestion)} placeholder="question_key" required className="rounded-lg border border-gray-300 bg-surface-2 px-3 py-2 text-sm text-gray-900 disabled:opacity-60" />
-              <input value={questionForm.response_key} onChange={e => setQuestionForm(current => ({ ...current, response_key: normalizeKey(e.target.value) }))} disabled={Boolean(editingQuestion)} placeholder="response_key" required className="rounded-lg border border-gray-300 bg-surface-2 px-3 py-2 text-sm text-gray-900 disabled:opacity-60" />
+              <input value={questionForm.question_key} onChange={e => setQuestionForm(current => ({ ...current, question_key: normalizeKey(e.target.value) }))} disabled={Boolean(editingQuestion)} placeholder="question_key" required className="field-control disabled:opacity-60" />
+              <input value={questionForm.response_key} onChange={e => setQuestionForm(current => ({ ...current, response_key: normalizeKey(e.target.value) }))} disabled={Boolean(editingQuestion)} placeholder="response_key" required className="field-control disabled:opacity-60" />
             </div>
             <div className="grid grid-cols-2 gap-2">
-              <input value={questionForm.section} onChange={e => setQuestionForm(current => ({ ...current, section: e.target.value }))} disabled={Boolean(editingQuestion)} placeholder="Section" className="rounded-lg border border-gray-300 bg-surface-2 px-3 py-2 text-sm text-gray-900 disabled:opacity-60" />
-              <select value={questionForm.question_type} onChange={e => setQuestionForm(current => ({ ...current, question_type: e.target.value as AssessmentQuestionType }))} disabled={Boolean(editingQuestion)} className="rounded-lg border border-gray-300 bg-surface-2 px-3 py-2 text-sm text-gray-900 disabled:opacity-60">
+              <input value={questionForm.section} onChange={e => setQuestionForm(current => ({ ...current, section: e.target.value }))} disabled={Boolean(editingQuestion)} placeholder="Section" className="field-control disabled:opacity-60" />
+              <select value={questionForm.question_type} onChange={e => setQuestionForm(current => ({ ...current, question_type: e.target.value as AssessmentQuestionType }))} disabled={Boolean(editingQuestion)} className="field-control disabled:opacity-60">
                 {QUESTION_TYPES.map(type => <option key={type} value={type}>{type}</option>)}
               </select>
             </div>
-            <input value={questionForm.scoring_dimension} onChange={e => setQuestionForm(current => ({ ...current, scoring_dimension: e.target.value }))} disabled={Boolean(editingQuestion)} placeholder="Scoring dimension" className="w-full rounded-lg border border-gray-300 bg-surface-2 px-3 py-2 text-sm text-gray-900 disabled:opacity-60" />
+            <input value={questionForm.scoring_dimension} onChange={e => setQuestionForm(current => ({ ...current, scoring_dimension: e.target.value }))} disabled={Boolean(editingQuestion)} placeholder="Scoring dimension" className="w-full field-control disabled:opacity-60" />
             <div className="flex gap-2">
-              <button type="button" onClick={() => submitQuestion()} disabled={saving} className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{saving ? 'Saving…' : editingQuestion ? 'Save Question' : 'Add Question'}</button>
-              {editingQuestion && <button type="button" onClick={() => { setEditingQuestion(null); setQuestionForm(EMPTY_QUESTION); }} className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700">Cancel</button>}
+              <button type="button" onClick={() => submitQuestion()} disabled={saving} className="btn-primary">{saving ? 'Saving...' : editingQuestion ? 'Save Question' : 'Add Question'}</button>
+              {editingQuestion && <button type="button" onClick={() => { setEditingQuestion(null); setQuestionForm(EMPTY_QUESTION); }} className="btn-secondary">Cancel</button>}
             </div>
           </form>
         </aside>
@@ -843,21 +846,21 @@ export function AssessmentTemplates() {
           <div className="w-full max-w-lg rounded-lg border border-gray-200 bg-surface p-5 shadow-xl">
             <div className="mb-4 flex items-start justify-between gap-3">
               <div>
-                <h2 className="font-display text-xl font-semibold text-gray-900">Generate Invite Link</h2>
+                <h2 className="cockpit-section-title">Generate Invite Link</h2>
                 <p className="mt-1 text-xs text-gray-500">Template: {selectedTemplate.name}</p>
               </div>
-              <button type="button" onClick={() => setInviteModalOpen(false)} className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-700">Close</button>
+              <button type="button" onClick={() => setInviteModalOpen(false)} className="btn-subtle">Close</button>
             </div>
             <form onSubmit={createInviteLink} className="space-y-3">
-              <input value={inviteForm.creatorName} onChange={e => setInviteForm(current => ({ ...current, creatorName: e.target.value }))} placeholder="Creator name" required className="w-full rounded-lg border border-gray-300 bg-surface-2 px-3 py-2 text-sm text-gray-900" />
-              <input type="email" value={inviteForm.creatorEmail} onChange={e => setInviteForm(current => ({ ...current, creatorEmail: e.target.value }))} placeholder="Email optional" className="w-full rounded-lg border border-gray-300 bg-surface-2 px-3 py-2 text-sm text-gray-900" />
-              <textarea value={inviteForm.notes} onChange={e => setInviteForm(current => ({ ...current, notes: e.target.value }))} rows={3} placeholder="Notes" className="w-full resize-none rounded-lg border border-gray-300 bg-surface-2 px-3 py-2 text-sm text-gray-900" />
-              <button type="submit" disabled={saving || !inviteForm.creatorName.trim()} className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">Create Invite</button>
+              <input value={inviteForm.creatorName} onChange={e => setInviteForm(current => ({ ...current, creatorName: e.target.value }))} placeholder="Creator name" required className="w-full field-control" />
+              <input type="email" value={inviteForm.creatorEmail} onChange={e => setInviteForm(current => ({ ...current, creatorEmail: e.target.value }))} placeholder="Email optional" className="w-full field-control" />
+              <textarea value={inviteForm.notes} onChange={e => setInviteForm(current => ({ ...current, notes: e.target.value }))} rows={3} placeholder="Notes" className="w-full resize-none field-control" />
+              <button type="submit" disabled={saving || !inviteForm.creatorName.trim()} className="btn-primary">Create Invite</button>
             </form>
             {generatedInviteUrl && (
               <div className="mt-4 rounded-lg border border-accent/30 bg-accent/10 p-3">
                 <p className="break-all text-sm text-gray-900">{generatedInviteUrl}</p>
-                <button type="button" onClick={() => copyInviteUrl(generatedInviteUrl)} className="mt-3 rounded-lg border border-accent/40 px-3 py-1.5 text-sm text-accent">Copy</button>
+                <button type="button" onClick={() => copyInviteUrl(generatedInviteUrl)} className="mt-3 btn-subtle text-accent">Copy</button>
               </div>
             )}
           </div>
@@ -870,10 +873,10 @@ export function AssessmentTemplates() {
             <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-gray-200 bg-gray-50 px-5 py-4">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-warn">Preview Only</p>
-                <h2 className="font-display text-xl font-semibold text-gray-900">{templateName || selectedTemplate?.name || 'Assessment Template'}</h2>
+                <h2 className="cockpit-section-title">{templateName || selectedTemplate?.name || 'Assessment Template'}</h2>
                 <p className="mt-1 text-sm text-gray-500">This preview uses unsaved draft changes and cannot submit assessment data.</p>
               </div>
-              <button type="button" onClick={() => setPreviewOpen(false)} className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-700">Close</button>
+              <button type="button" onClick={() => setPreviewOpen(false)} className="btn-subtle">Close</button>
             </div>
 
             <div className="space-y-8 px-5 py-6">
@@ -883,7 +886,7 @@ export function AssessmentTemplates() {
               {previewSections.map(section => (
                 <section key={section.id} className="space-y-5">
                   <div>
-                    <h3 className="font-display text-xl font-semibold text-gray-900">{section.title}</h3>
+                    <h3 className="cockpit-section-title">{section.title}</h3>
                     {section.description && <p className="mt-2 text-sm leading-6 text-gray-500">{section.description}</p>}
                   </div>
                   <div className="space-y-5">
@@ -907,6 +910,7 @@ export function AssessmentTemplates() {
     </div>
   );
 }
+
 
 
 

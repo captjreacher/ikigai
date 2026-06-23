@@ -73,18 +73,18 @@ function AgencyQualificationPanel({ report }: { report: CreatorReport | undefine
 
   if (!scores && !recommendation) {
     return (
-      <div className="bg-surface border border-gray-200 rounded-xl p-5">
-        <h2 className="font-display font-semibold text-lg mb-2">Agency Qualification</h2>
+      <div className="cockpit-card-pad">
+        <h2 className="cockpit-section-title mb-2">Agency Qualification</h2>
         <p className="text-sm text-gray-600">No internal agency qualification data stored for this report yet.</p>
       </div>
     );
   }
 
   return (
-    <div className="bg-surface border border-accent/20 rounded-xl p-5">
+    <div className="cockpit-card-pad border-accent/30">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="font-display font-semibold text-lg">Agency Qualification</h2>
+          <h2 className="cockpit-section-title">Agency Qualification</h2>
           {recommendation?.agency_priority && (
             <p className="mt-1 text-xs uppercase tracking-wide text-gray-500">
               {recommendation.agency_priority} priority
@@ -205,7 +205,7 @@ export function CreatorProfileView() {
     setStatusLoading('');
   };
 
-  if (loading) return <div className="animate-pulse text-gray-500 p-4">Loading Profile…</div>;
+  if (loading) return <div className="animate-pulse p-4 text-gray-500">Loading Profile...</div>;
   if (loadError) return <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">{loadError}</div>;
   if (!profile) return <div className="rounded-lg border border-gray-200 bg-white p-4 text-sm text-gray-600">Creator not found.</div>;
 
@@ -238,32 +238,30 @@ export function CreatorProfileView() {
   }), [assessments, assessmentCreatorFilter, assessmentTemplateFilter]);
 
   return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div>
-        <button onClick={() => navigate('/cockpit/creators')} className="text-xs text-gray-500 hover:text-gray-700 mb-2 inline-block">← Back to pipeline</button>
-        <div className="flex items-start justify-between flex-wrap gap-4">
-          <div>
-            <h1 className="font-display text-2xl font-bold">{profile.full_name}</h1>
-            <p className="text-gray-500 text-sm">{profile.email} · {profile.country}</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="px-3 py-1 rounded-full text-xs font-semibold bg-surface-3 text-gray-700 capitalize">
-              {profile.status}
-            </span>
-            <span className="px-3 py-1 rounded-full text-xs font-semibold bg-accent/20 text-accent">
-              {profile.management_readiness ?? '—'}
-            </span>
-          </div>
+    <div className="cockpit-page">
+      <header className="cockpit-page-header">
+        <div>
+          <button onClick={() => navigate('/cockpit/creators')} className="mb-2 inline-block text-xs font-medium text-gray-500 transition-colors hover:text-accent">&lt;- Back to pipeline</button>
+          <p className="cockpit-eyebrow">Creator Profile</p>
+          <h1 className="cockpit-title">{profile.full_name}</h1>
+          <p className="cockpit-subtitle">{profile.email} / {profile.country}</p>
         </div>
-      </div>
+        <div className="flex items-center gap-2">
+          <span className="rounded-full bg-surface-3 px-3 py-1 text-xs font-semibold capitalize text-gray-700">
+            {profile.status}
+          </span>
+          <span className="rounded-full bg-accent/15 px-3 py-1 text-xs font-semibold text-accent">
+            {profile.management_readiness ?? '-'}
+          </span>
+        </div>
+      </header>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Left: Details */}
         <div className="lg:col-span-2 space-y-6">
           {/* Scores */}
-          <div className="bg-surface border border-gray-200 rounded-xl p-5">
-            <h2 className="font-display font-semibold text-lg mb-4">Scores</h2>
+          <div className="cockpit-card-pad">
+            <h2 className="cockpit-section-title mb-4">Scores</h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
               {scoreCards.map(([label, score]) => (
                 <div key={label} className="bg-surface-2 rounded-lg p-3 text-center">
@@ -277,11 +275,11 @@ export function CreatorProfileView() {
           <AgencyQualificationPanel report={latestReport} />
 
           {/* Creator DNA */}
-          <div className="bg-surface border border-gray-200 rounded-xl p-5">
+          <div className="cockpit-card-pad">
             <div className="flex items-center justify-between gap-3 mb-4">
-              <h2 className="font-display font-semibold text-lg">Creator DNA</h2>
+              <h2 className="cockpit-section-title">Creator DNA</h2>
               {latestDna && (
-                <span className="px-3 py-1 rounded-full text-xs font-semibold bg-accent/20 text-accent">
+                <span className="rounded-full bg-accent/15 px-3 py-1 text-xs font-semibold text-accent">
                   {latestDna.agency_opportunity_band}
                 </span>
               )}
@@ -296,7 +294,7 @@ export function CreatorProfileView() {
                     <div className="text-xs text-gray-500 mb-1">DNA</div>
                     <div className="text-sm font-semibold text-gray-900">{latestDna.creator_dna_primary}</div>
                     <div className="text-xs text-gray-500 mt-1">
-                      Secondary: {latestDna.creator_dna_secondary} · {latestDna.confidence}% confidence
+                      Secondary: {latestDna.creator_dna_secondary} / {latestDna.confidence}% confidence
                     </div>
                   </div>
                   <div className="bg-surface-2 rounded-lg p-3">
@@ -351,8 +349,8 @@ export function CreatorProfileView() {
 
           {/* Top Verticals */}
           {profile.top_vertical_1 && (
-            <div className="bg-surface border border-gray-200 rounded-xl p-5">
-              <h2 className="font-display font-semibold text-lg mb-3">Top Content Verticals</h2>
+            <div className="cockpit-card-pad">
+              <h2 className="cockpit-section-title mb-3">Top Content Verticals</h2>
               <div className="flex flex-wrap gap-2">
                 {[profile.top_vertical_1, profile.top_vertical_2, profile.top_vertical_3].filter(Boolean).map((v, i) => (
                   <span key={v} className="px-3 py-1.5 rounded-full text-sm bg-surface-3 text-gray-700">
@@ -364,8 +362,8 @@ export function CreatorProfileView() {
           )}
 
           {/* Reports */}
-          <div className="bg-surface border border-gray-200 rounded-xl p-5">
-            <h2 className="font-display font-semibold text-lg mb-3">Reports ({reports.length})</h2>
+          <div className="cockpit-card-pad">
+            <h2 className="cockpit-section-title mb-3">Reports ({reports.length})</h2>
             {reports.length === 0 ? (
               <p className="text-sm text-gray-600">No reports yet.</p>
             ) : (
@@ -389,15 +387,15 @@ export function CreatorProfileView() {
           </div>
 
           {/* Assessments */}
-          <div className="bg-surface border border-gray-200 rounded-xl p-5">
+          <div className="cockpit-card-pad">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-              <h2 className="font-display font-semibold text-lg">Assessment History ({visibleAssessments.length})</h2>
+              <h2 className="cockpit-section-title">Assessment History ({visibleAssessments.length})</h2>
               <div className="flex flex-wrap gap-2">
-                <select value={assessmentTemplateFilter} onChange={e => setAssessmentTemplateFilter(e.target.value)} className="rounded-lg border border-gray-300 bg-surface-2 px-3 py-2 text-xs text-gray-900">
+                <select value={assessmentTemplateFilter} onChange={e => setAssessmentTemplateFilter(e.target.value)} className="field-control text-xs">
                   <option value="">All templates</option>
                   {templateFilterOptions.map(templateName => <option key={templateName} value={templateName}>{templateName}</option>)}
                 </select>
-                <select value={assessmentCreatorFilter} onChange={e => setAssessmentCreatorFilter(e.target.value)} className="rounded-lg border border-gray-300 bg-surface-2 px-3 py-2 text-xs text-gray-900">
+                <select value={assessmentCreatorFilter} onChange={e => setAssessmentCreatorFilter(e.target.value)} className="field-control text-xs">
                   <option value="">All invite creators</option>
                   {creatorFilterOptions.map(creatorName => <option key={creatorName} value={creatorName}>{creatorName}</option>)}
                 </select>
@@ -408,25 +406,25 @@ export function CreatorProfileView() {
             ) : visibleAssessments.length === 0 ? (
               <p className="text-sm text-gray-600">No assessments match the current filters.</p>
             ) : (
-              <div className="overflow-x-auto rounded-lg border border-gray-200">
-                <table className="w-full text-left text-sm">
-                  <thead className="border-b border-gray-200 text-xs uppercase tracking-wide text-gray-500">
+              <div className="table-shell overflow-x-auto">
+                <table className="data-table">
+                  <thead className="">
                     <tr>
-                      <th className="px-4 py-3 font-medium">Date</th>
-                      <th className="px-4 py-3 font-medium">Score</th>
-                      <th className="px-4 py-3 font-medium">Template</th>
-                      <th className="px-4 py-3 font-medium">Invite Code</th>
-                      <th className="px-4 py-3 font-medium">Creator Name</th>
+                      <th >Date</th>
+                      <th >Score</th>
+                      <th >Template</th>
+                      <th >Invite Code</th>
+                      <th >Creator Name</th>
                     </tr>
                   </thead>
                   <tbody>
                     {visibleAssessments.map(a => (
-                      <tr key={a.id} className="border-b border-gray-200/60 bg-surface-2 last:border-0">
-                        <td className="px-4 py-3 text-xs text-gray-500">{new Date(a.created_at!).toLocaleDateString()}</td>
-                        <td className="px-4 py-3 text-gray-700">{a.agency_opportunity_score ?? '-'}</td>
-                        <td className="px-4 py-3 text-gray-700">{templateNameFor(a)}</td>
-                        <td className="px-4 py-3 text-gray-700">{a.invite_code ?? '-'}</td>
-                        <td className="px-4 py-3 text-gray-700">{a.creator_name ?? '-'}</td>
+                      <tr key={a.id}>
+                        <td className="text-xs text-gray-500">{new Date(a.created_at!).toLocaleDateString()}</td>
+                        <td className="text-gray-700">{a.agency_opportunity_score ?? '-'}</td>
+                        <td className="text-gray-700">{templateNameFor(a)}</td>
+                        <td className="text-gray-700">{a.invite_code ?? '-'}</td>
+                        <td className="text-gray-700">{a.creator_name ?? '-'}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -439,17 +437,17 @@ export function CreatorProfileView() {
         {/* Right: Actions */}
         <div className="space-y-6">
           {/* Status Transitions */}
-          <div className="bg-surface border border-gray-200 rounded-xl p-5">
-            <h2 className="font-display font-semibold text-lg mb-3">Actions</h2>
+          <div className="cockpit-card-pad">
+            <h2 className="cockpit-section-title mb-3">Actions</h2>
             <div className="space-y-2">
               {(NEXT_STATUS[profile.status] ?? []).map(({ next, event, label }) => (
                 <button
                   key={event}
                   onClick={() => handleStatusChange(next, event)}
                   disabled={statusLoading === event}
-                  className="w-full px-4 py-2 rounded-lg bg-accent/10 border border-accent/30 text-accent hover:bg-accent/20 text-sm font-medium transition-colors disabled:opacity-50"
+                  className="btn-primary w-full"
                 >
-                  {statusLoading === event ? 'Updating…' : label}
+                  {statusLoading === event ? 'Updating...' : label}
                 </button>
               ))}
               {profile.status !== 'offboarded' && (
@@ -465,8 +463,8 @@ export function CreatorProfileView() {
           </div>
 
           {/* Notes */}
-          <div className="bg-surface border border-gray-200 rounded-xl p-5">
-            <h2 className="font-display font-semibold text-lg mb-3">Agency Notes</h2>
+          <div className="cockpit-card-pad">
+            <h2 className="cockpit-section-title mb-3">Agency Notes</h2>
             <div className="space-y-2 mb-4 max-h-64 overflow-y-auto">
               {notes.length === 0 && <p className="text-sm text-gray-600">No notes yet.</p>}
               {notes.map(n => (
@@ -482,13 +480,13 @@ export function CreatorProfileView() {
                 value={noteText}
                 onChange={e => setNoteText(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleAddNote()}
-                placeholder="Add a note…"
-                className="flex-1 bg-surface-2 border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 placeholder-gray-500 focus:border-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/30"
+                placeholder="Add a note..."
+                className="field-control flex-1"
               />
               <button
                 onClick={handleAddNote}
                 disabled={!noteText.trim()}
-                className="px-3 py-2 rounded-lg bg-accent text-white text-sm font-semibold disabled:opacity-40"
+                className="btn-primary px-3"
               >
                 Add
               </button>
@@ -496,8 +494,8 @@ export function CreatorProfileView() {
           </div>
 
           {/* Timeline */}
-          <div className="bg-surface border border-gray-200 rounded-xl p-5">
-            <h2 className="font-display font-semibold text-lg mb-3">Timeline</h2>
+          <div className="cockpit-card-pad">
+            <h2 className="cockpit-section-title mb-3">Timeline</h2>
             <div className="space-y-3">
               {events.length === 0 && <p className="text-sm text-gray-600">No events yet.</p>}
               {events.map(e => (
@@ -516,5 +514,6 @@ export function CreatorProfileView() {
     </div>
   );
 }
+
 
 

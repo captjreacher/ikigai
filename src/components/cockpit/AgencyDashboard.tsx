@@ -1,14 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getDashboardMetrics } from '@/lib/creators-api';
 import type { DashboardMetrics } from '@/lib/creators-api';
 
 function MetricCard({ label, value, subtitle }: { label: string; value: string | number; subtitle?: string }) {
   return (
-    <div className="bg-surface border border-gray-200 rounded-xl p-5">
-      <div className="text-3xl font-bold font-display text-accent">{value}</div>
-      <div className="text-sm text-gray-600 mt-1">{label}</div>
-      {subtitle && <div className="text-xs text-gray-600 mt-1">{subtitle}</div>}
+    <div className="cockpit-card-pad">
+      <div className="metric-value">{value}</div>
+      <div className="mt-2 text-sm font-semibold text-charcoal">{label}</div>
+      {subtitle && <div className="mt-1 text-xs leading-5 text-gray-500">{subtitle}</div>}
     </div>
   );
 }
@@ -25,14 +25,20 @@ export function AgencyDashboard() {
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <div className="animate-pulse text-gray-500 p-4">Loading Dashboard…</div>;
+  if (loading) return <div className="animate-pulse p-4 text-gray-500">Loading Dashboard...</div>;
   if (error || !metrics) return <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error || 'Unable to load dashboard metrics.'}</div>;
 
   return (
-    <div>
-      <h1 className="font-display text-2xl font-bold mb-6">Agency Dashboard</h1>
+    <div className="cockpit-page">
+      <header className="cockpit-page-header">
+        <div>
+          <p className="cockpit-eyebrow">Creators Cockpit</p>
+          <h1 className="cockpit-title">Agency Dashboard</h1>
+          <p className="cockpit-subtitle">Monitor creator pipeline quality, qualification, and conversion momentum.</p>
+        </div>
+      </header>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <MetricCard label="Total Creator Profiles" value={metrics.totalProfiles} />
         <MetricCard label="Assessments Completed" value={metrics.assessmentsCompleted} />
         <MetricCard label="Qualified Creators" value={metrics.qualifiedCreators} subtitle="Interviewed + Accepted + Active" />
@@ -42,35 +48,32 @@ export function AgencyDashboard() {
         <MetricCard label="Conversion Rate" value={`${metrics.conversionRate}%`} subtitle="Qualified + Active / Total" />
       </div>
 
-      {/* Quick Links */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Link
           to="/cockpit/creators"
-          className="bg-surface border border-gray-200 rounded-xl p-5 hover:border-accent/30 transition-colors group"
+          className="cockpit-card-pad group transition-colors hover:border-accent/40 hover:shadow-md hover:shadow-orange-950/5"
         >
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-4">
             <div>
-              <h3 className="font-semibold text-gray-800 group-hover:text-accent transition-colors">Creator Pipeline</h3>
-              <p className="text-sm text-gray-500 mt-1">View and manage all creator profiles</p>
+              <h3 className="cockpit-section-title transition-colors group-hover:text-accent">Creator Pipeline</h3>
+              <p className="mt-1 text-sm text-gray-500">View and manage all creator profiles</p>
             </div>
-            <span className="text-2xl">→</span>
+            <span className="text-xl font-semibold text-accent">-&gt;</span>
           </div>
         </Link>
         <Link
           to="/cockpit/settings/assessment-templates"
-          className="bg-surface border border-gray-200 rounded-xl p-5 hover:border-accent/30 transition-colors group"
+          className="cockpit-card-pad group transition-colors hover:border-accent/40 hover:shadow-md hover:shadow-orange-950/5"
         >
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-4">
             <div>
-              <h3 className="font-semibold text-gray-800 group-hover:text-accent transition-colors">Assessment Templates</h3>
-              <p className="text-sm text-gray-500 mt-1">Manage templates and invite-only assessment links</p>
+              <h3 className="cockpit-section-title transition-colors group-hover:text-accent">Assessment Templates</h3>
+              <p className="mt-1 text-sm text-gray-500">Manage templates and invite-only assessment links</p>
             </div>
-            <span className="text-2xl">↗</span>
+            <span className="text-xl font-semibold text-accent">-&gt;</span>
           </div>
         </Link>
       </div>
     </div>
   );
 }
-
-
