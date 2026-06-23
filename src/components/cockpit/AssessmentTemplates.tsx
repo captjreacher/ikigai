@@ -1,4 +1,4 @@
-import { type DragEvent, FormEvent, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 import {
   archiveQuestion,
   createAssessmentInviteLink,
@@ -125,6 +125,7 @@ export function AssessmentTemplates() {
   const [bankTypeFilter, setBankTypeFilter] = useState<'all' | AssessmentQuestionType>('all');
   const [draggedItemId, setDraggedItemId] = useState('');
   const [draggedSectionId, setDraggedSectionId] = useState('');
+  const [logicMode, setLogicMode] = useState<LogicMode>('always');
 
   const selectedTemplate = templates.find(template => template.id === selectedTemplateId) ?? templates[0] ?? null;
   const selectedInviteLinks = inviteLinks.filter(link => link.template_id === selectedTemplate?.id);
@@ -568,9 +569,9 @@ export function AssessmentTemplates() {
           help_text: questionForm.help_text || null,
           section: questionForm.section,
           scoring_dimension: questionForm.scoring_dimension || null,
-          parent_question_key: questionForm.parent_question_key || null,
-          show_when_value: questionForm.parent_question_key ? questionForm.show_when_value || null : null,
-          show_when_operator: questionForm.show_when_operator,
+          parent_question_key: logicMode === 'always' ? null : questionForm.parent_question_key || null,
+          show_when_value: logicMode === 'always' ? null : questionForm.show_when_value || null,
+          show_when_operator: logicMode === 'always' ? 'equals' : logicMode,
           options: editingQuestion.options,
         });
         setEditingQuestion(updated);
@@ -584,15 +585,16 @@ export function AssessmentTemplates() {
           section: questionForm.section,
           question_type: questionForm.question_type,
           scoring_dimension: questionForm.scoring_dimension || null,
-          parent_question_key: questionForm.parent_question_key || null,
-          show_when_value: questionForm.parent_question_key ? questionForm.show_when_value || null : null,
-          show_when_operator: questionForm.show_when_operator,
+          parent_question_key: logicMode === 'always' ? null : questionForm.parent_question_key || null,
+          show_when_value: logicMode === 'always' ? null : questionForm.show_when_value || null,
+          show_when_operator: logicMode === 'always' ? 'equals' : logicMode,
           options: [],
         });
         setSuccess('Question created.');
       }
       setEditingQuestion(null);
       setQuestionForm(EMPTY_QUESTION);
+      setLogicMode('always');
       await load(selectedTemplateId);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to save question');
@@ -615,6 +617,7 @@ export function AssessmentTemplates() {
       show_when_value: question.show_when_value ?? '',
       show_when_operator: question.show_when_operator ?? 'equals',
     });
+    setLogicMode(question.parent_question_key ? question.show_when_operator ?? 'equals' : 'always');
   };
 
   const createTemplate = async (event?: FormEvent) => {
@@ -848,66 +851,319 @@ export function AssessmentTemplates() {
       {error && <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
       {success && <div className="rounded-lg border border-success/30 bg-success/10 px-4 py-3 text-sm text-success">{success}</div>}
 
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
-        <section className="space-y-4">
-          <div className="cockpit-panel">
-            <div className="cockpit-panel-header">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <h2 className="cockpit-section-title">Template Editor</h2>
-                  <p className="text-xs text-gray-500">Templates contain ordered section headings and questions.</p>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <select value={selectedTemplate?.id ?? ''} onChange={e => selectTemplate(e.target.value)} className="field-control">
-                    {templates.map(template => (
-                      <option key={template.id} value={template.id}>{template.name}{template.is_default ? ' (default)' : ''}{template.is_active ? '' : ' (archived)'}</option>
-                    ))}
-                  </select>
-                  <button type="button" onClick={saveTemplate} disabled={Boolean(saveDisabledReason)} title={saveDisabledReason || undefined} className="btn-primary px-3">Save Template Changes</button>
-                  <button type="button" onClick={() => setPreviewOpen(true)} disabled={!selectedTemplate} className="btn-secondary px-3">Preview Assessment</button>
-                  <button type="button" onClick={openInviteModal} disabled={!selectedTemplate} className="btn-secondary px-3">Generate Invite Link</button>
-                </div>
+      <div className="space-y-4">
+        <div className="cockpit-panel">
+          <div className="cockpit-panel-header">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h2 className="cockpit-section-title">Assessment Builder</h2>
+                <p className="text-xs text-gray-500">Build structure separately from the reusable question bank. Drag sections and questions to reorder.</p>
               </div>
-              {saveDisabledReason && <p className="mt-2 text-xs text-gray-500">Save: {saveDisabledReason}</p>}
+              <div className="flex flex-wrap gap-2">
+                <select value={selectedTemplate?.id ?? ''} onChange={e => selectTemplate(e.target.value)} className="field-control">
+                  {templates.map(template => (
+                    <option key={template.id} value={template.id}>{template.name}{template.is_default ? ' (default)' : ''}{template.is_active ? '' : ' (archived)'}</option>
+                  ))}
+                </select>
+                <button type="button" onClick={saveTemplate} disabled={Boolean(saveDisabledReason)} title={saveDisabledReason || undefined} className="btn-primary px-3">Save</button>
+                <button type="button" onClick={() => setPreviewOpen(true)} disabled={!selectedTemplate} className="btn-secondary px-3">Preview</button>
+                <button type="button" onClick={openInviteModal} disabled={!selectedTemplate} className="btn-secondary px-3">Invite Link</button>
+              </div>
             </div>
+            {saveDisabledReason && <p className="mt-2 text-xs text-gray-500">Save: {saveDisabledReason}</p>}
+          </div>
 
-            {!selectedTemplate ? (
-              <p className="p-6 text-sm text-gray-500">No templates yet.</p>
-            ) : (
-              <div className="space-y-5 p-4">
-                <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_1fr_1.5fr]">
-                  <input value={templateName} onChange={e => setTemplateName(e.target.value)} placeholder="Template name" className="field-control" />
-                  <input value={templateSlug} onChange={e => setTemplateSlug(normalizeKey(e.target.value).replace(/_/g, '-'))} placeholder="URL slug" className="field-control" />
-                  <input value={templateDescription} onChange={e => setTemplateDescription(e.target.value)} placeholder="Description" className="field-control" />
-                </div>
-                <p className="text-xs text-gray-500">Invite URL base: /a/{templateSlug || selectedTemplate.slug}. Share generated invite links only.</p>
+          {!selectedTemplate ? (
+            <p className="p-6 text-sm text-gray-500">No templates yet.</p>
+          ) : (
+            <div className="space-y-4 p-4">
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_1fr_1.5fr]">
+                <input value={templateName} onChange={e => setTemplateName(e.target.value)} placeholder="Template name" className="field-control" />
+                <input value={templateSlug} onChange={e => setTemplateSlug(normalizeKey(e.target.value).replace(/_/g, '-'))} placeholder="URL slug" className="field-control" />
+                <input value={templateDescription} onChange={e => setTemplateDescription(e.target.value)} placeholder="Description" className="field-control" />
+              </div>
 
-                <div className="flex flex-wrap gap-2">
-                  <span className={`rounded-full px-3 py-1 text-xs font-semibold ${selectedTemplate.is_active ? 'bg-success/10 text-success' : 'bg-warn/10 text-warn'}`}>{selectedTemplate.is_active ? 'Active' : 'Archived'}</span>
-                  {selectedTemplate.is_default && <span className="rounded-full bg-accent/10 px-3 py-1 text-xs font-semibold text-accent">Current Default</span>}
-                  {isDirty && <span className="rounded-full bg-warn/10 px-3 py-1 text-xs font-semibold text-warn">Draft changes unsaved</span>}
-                  <button type="button" onClick={addHeading} disabled={!selectedTemplate || saving} title={!selectedTemplate ? 'Select or create a template before adding a heading.' : saving ? 'Template update already in progress.' : undefined} className="btn-subtle text-accent">Add Section Heading</button>
-                  {selectedTemplate.is_active ? (
-                    <button type="button" onClick={() => setTemplateStatus(false)} disabled={Boolean(archiveDisabledReason)} title={archiveDisabledReason || undefined} className="btn-subtle">Archive Template</button>
-                  ) : (
-                    <button type="button" onClick={() => setTemplateStatus(true)} disabled={saving} title={saving ? 'Template update already in progress.' : undefined} className="btn-subtle text-accent">Restore Template</button>
-                  )}
-                  <button type="button" onClick={makeDefault} disabled={Boolean(defaultDisabledReason)} title={defaultDisabledReason || undefined} className="btn-primary px-3 py-1.5">Set as Default</button>
-                </div>
-                {(archiveDisabledReason || defaultDisabledReason) && (
-                  <div className="space-y-1 text-xs text-gray-500">
-                    {archiveDisabledReason && <p>Archive: {archiveDisabledReason}</p>}
-                    {defaultDisabledReason && <p>Default: {defaultDisabledReason}</p>}
-                  </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <button type="button" onClick={() => setActiveTab('builder')} className={activeTab === 'builder' ? 'btn-primary px-3' : 'btn-subtle'}>Template Builder</button>
+                <button type="button" onClick={() => setActiveTab('bank')} className={activeTab === 'bank' ? 'btn-primary px-3' : 'btn-subtle'}>Question Bank</button>
+                <button type="button" onClick={() => setActiveTab('invites')} className={activeTab === 'invites' ? 'btn-primary px-3' : 'btn-subtle'}>Invites</button>
+                <span className={`rounded-full px-3 py-1 text-xs font-semibold ${selectedTemplate.is_active ? 'bg-success/10 text-success' : 'bg-warn/10 text-warn'}`}>{selectedTemplate.is_active ? 'Active' : 'Archived'}</span>
+                {selectedTemplate.is_default && <span className="rounded-full bg-accent/10 px-3 py-1 text-xs font-semibold text-accent">Default</span>}
+                {isDirty && <span className="rounded-full bg-warn/10 px-3 py-1 text-xs font-semibold text-warn">Unsaved</span>}
+                <button type="button" onClick={addHeading} disabled={!selectedTemplate || saving} className="btn-subtle text-accent">Add Section</button>
+                {selectedTemplate.is_active ? (
+                  <button type="button" onClick={() => setTemplateStatus(false)} disabled={Boolean(archiveDisabledReason)} title={archiveDisabledReason || undefined} className="btn-subtle">Archive Template</button>
+                ) : (
+                  <button type="button" onClick={() => setTemplateStatus(true)} disabled={saving} className="btn-subtle text-accent">Restore Template</button>
                 )}
+                <button type="button" onClick={makeDefault} disabled={Boolean(defaultDisabledReason)} title={defaultDisabledReason || undefined} className="btn-subtle">Set Default</button>
+              </div>
 
-                {selectedInviteLinks.length > 0 && (
-                  <div className="rounded-lg border border-gray-200">
+              {activeTab === 'builder' && (
+                <div className="grid min-h-[36rem] grid-cols-1 gap-4 xl:grid-cols-[280px_minmax(0,1fr)_360px]">
+                  <div className="cockpit-panel">
+                    <div className="cockpit-panel-header">
+                      <h3 className="cockpit-section-title">Sections</h3>
+                      <p className="text-xs text-gray-500">{sectionGroups.length} section{sectionGroups.length === 1 ? '' : 's'}</p>
+                    </div>
+                    <div className="max-h-[32rem] space-y-2 overflow-y-auto p-3">
+                      {sectionGroups.length === 0 && <p className="p-3 text-sm text-gray-500">Add a section to start building.</p>}
+                      {sectionGroups.map(section => (
+                        <button
+                          key={section.id}
+                          type="button"
+                          draggable={Boolean(section.heading)}
+                          onDragStart={() => setDraggedSectionId(section.id)}
+                          onDragOver={event => event.preventDefault()}
+                          onDrop={() => onSectionDrop(section.id)}
+                          onClick={() => {
+                            setSelectedSectionId(section.id);
+                            selectBuilderItem(section.heading ?? section.questions[0] ?? null);
+                          }}
+                          className={`w-full rounded-2xl border px-3 py-3 text-left transition-colors ${selectedSection?.id === section.id ? 'border-accent/50 bg-accent/10' : 'border-white/10 bg-white/5 hover:bg-white/10'}`}
+                        >
+                          <span className="block text-sm font-semibold text-gray-900">{section.title}</span>
+                          <span className="mt-1 block text-xs text-gray-500">{section.questions.length} question{section.questions.length === 1 ? '' : 's'}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="cockpit-panel">
+                    <div className="cockpit-panel-header">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <h3 className="cockpit-section-title">{selectedSection?.title ?? 'Questions'}</h3>
+                          <p className="text-xs text-gray-500">Drag questions to reorder within this section. Add more from the Question Bank tab.</p>
+                        </div>
+                        {selectedSection?.heading && (
+                          <button type="button" onClick={() => selectBuilderItem(selectedSection.heading)} className="btn-subtle text-xs">Edit Section</button>
+                        )}
+                      </div>
+                    </div>
+                    <div className="max-h-[32rem] space-y-2 overflow-y-auto p-3">
+                      {selectedSection?.questions.length === 0 && <p className="p-3 text-sm text-gray-500">No questions in this section yet.</p>}
+                      {selectedSection?.questions.map((item, index) => (
+                        <button
+                          key={item.id}
+                          type="button"
+                          draggable
+                          onDragStart={() => setDraggedItemId(item.id)}
+                          onDragOver={event => event.preventDefault()}
+                          onDrop={() => onQuestionDrop(item.id)}
+                          onClick={() => selectBuilderItem(item)}
+                          className={`w-full rounded-2xl border px-4 py-3 text-left transition-colors ${selectedItemId === item.id ? 'border-accent/50 bg-accent/10' : 'border-white/10 bg-white/5 hover:bg-white/10'}`}
+                        >
+                          <span className="flex items-start gap-3">
+                            <span className="mt-0.5 rounded-lg bg-white/10 px-2 py-1 text-xs text-gray-500">{index + 1}</span>
+                            <span className="min-w-0 flex-1">
+                              <span className="block text-sm font-semibold text-gray-900">{item.question?.question_text ?? 'Missing question'}</span>
+                              <span className="mt-1 block text-xs text-gray-500">
+                                {item.question?.question_type ?? 'unknown'}{item.question?.parent_question_key ? ` / conditional on ${item.question.parent_question_key}` : ' / show always'}
+                              </span>
+                            </span>
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="cockpit-panel">
+                    <div className="cockpit-panel-header">
+                      <h3 className="cockpit-section-title">Properties</h3>
+                      <p className="text-xs text-gray-500">{selectedItem?.item_type === 'section_heading' ? 'Template section' : selectedQuestion ? 'Reusable bank question' : 'Select a section or question'}</p>
+                    </div>
+                    <div className="max-h-[32rem] overflow-y-auto p-4">
+                      {selectedItem?.item_type === 'section_heading' ? (
+                        <div className="space-y-3">
+                          <input value={selectedItem.title ?? ''} onChange={e => updateItem(selectedItem.id, { title: e.target.value })} className="field-control w-full font-semibold" />
+                          <textarea value={selectedItem.description ?? ''} onChange={e => updateItem(selectedItem.id, { description: e.target.value })} rows={4} placeholder="Section description" className="field-control w-full resize-none" />
+                          <div className="flex flex-wrap gap-2">
+                            <button type="button" onClick={() => duplicateSection(selectedItem)} className="btn-subtle">Duplicate Section</button>
+                            <button type="button" onClick={() => removeItemFromTemplate(selectedItem)} className="btn-subtle">Remove Section</button>
+                          </div>
+                        </div>
+                      ) : selectedQuestion ? (
+                        <form onSubmit={submitQuestion} className="space-y-3">
+                          <input value={questionForm.question_text} onChange={e => setQuestionForm(current => ({ ...current, question_text: e.target.value }))} className="field-control w-full font-semibold" />
+                          <textarea value={questionForm.help_text} onChange={e => setQuestionForm(current => ({ ...current, help_text: e.target.value }))} rows={3} placeholder="Help text" className="field-control w-full resize-none" />
+                          <div className="grid grid-cols-2 gap-2">
+                            <input value={questionForm.section} onChange={e => setQuestionForm(current => ({ ...current, section: e.target.value }))} placeholder="Bank section" className="field-control" />
+                            <select value={questionForm.question_type} disabled className="field-control opacity-70">
+                              {QUESTION_TYPES.map(type => <option key={type} value={type}>{type}</option>)}
+                            </select>
+                          </div>
+                          <input value={questionForm.scoring_dimension} onChange={e => setQuestionForm(current => ({ ...current, scoring_dimension: e.target.value }))} placeholder="Scoring dimension" className="field-control w-full" />
+                          <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
+                            <p className="text-xs font-semibold uppercase tracking-wide text-accent">Conditional Logic</p>
+                            <select
+                              value={logicMode}
+                              onChange={e => {
+                                const mode = e.target.value as LogicMode;
+                                setLogicMode(mode);
+                                setQuestionForm(current => ({
+                                  ...current,
+                                  parent_question_key: mode === 'always' ? '' : current.parent_question_key,
+                                  show_when_value: mode === 'always' ? '' : current.show_when_value,
+                                  show_when_operator: mode === 'always' ? 'equals' : mode,
+                                }));
+                              }}
+                              className="field-control mt-3 w-full"
+                            >
+                              <option value="always">Show always</option>
+                              <option value="equals">Show if question equals value</option>
+                              <option value="includes">Show if question contains value</option>
+                            </select>
+                            {logicMode !== 'always' ? (
+                              <div className="mt-3 grid grid-cols-1 gap-2">
+                                <select value={questionForm.parent_question_key} onChange={e => setQuestionForm(current => ({ ...current, parent_question_key: e.target.value }))} className="field-control">
+                                  <option value="">Choose controlling question</option>
+                                  {activeQuestions.filter(question => question.id !== selectedQuestion.id).map(question => (
+                                    <option key={question.id} value={question.question_key}>{question.question_text}</option>
+                                  ))}
+                                </select>
+                                <input value={questionForm.show_when_value} onChange={e => setQuestionForm(current => ({ ...current, show_when_value: e.target.value }))} placeholder="Value to match" className="field-control" />
+                              </div>
+                            ) : null}
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            <button type="submit" disabled={saving} className="btn-primary">Save Question</button>
+                            {selectedItem && <button type="button" onClick={() => removeItemFromTemplate(selectedItem)} className="btn-subtle">Remove From Template</button>}
+                          </div>
+                        </form>
+                      ) : (
+                        <p className="text-sm text-gray-500">Select a section or question to edit its properties.</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'bank' && (
+                <div className="grid min-h-[36rem] grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
+                  <div className="cockpit-panel">
+                    <div className="cockpit-panel-header">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                          <h3 className="cockpit-section-title">Question Bank</h3>
+                          <p className="text-xs text-gray-500">Reusable library. Select a builder section, then add questions to it.</p>
+                        </div>
+                        <button type="button" onClick={() => { setEditingQuestion(null); setQuestionForm(EMPTY_QUESTION); setLogicMode('always'); setSelectedItemId(''); }} className="btn-secondary">New Question</button>
+                      </div>
+                      <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-[1fr_220px]">
+                        <input value={bankSearch} onChange={e => setBankSearch(e.target.value)} placeholder="Search question text, key, section, dimension" className="field-control" />
+                        <select value={bankTypeFilter} onChange={e => setBankTypeFilter(e.target.value as 'all' | AssessmentQuestionType)} className="field-control">
+                          <option value="all">All types</option>
+                          {QUESTION_TYPES.map(type => <option key={type} value={type}>{type}</option>)}
+                        </select>
+                      </div>
+                    </div>
+                    <div className="max-h-[32rem] divide-y divide-gray-200 overflow-y-auto">
+                      {filteredBankQuestions.length === 0 && <p className="p-4 text-sm text-gray-500">No matching questions.</p>}
+                      {filteredBankQuestions.map(question => {
+                        const eligibility = deleteEligibility[question.id] ?? { canDelete: false, reason: 'Checking delete safety...' };
+                        return (
+                          <div key={question.id} className={`p-4 transition-colors hover:bg-white/5 ${question.is_active ? '' : 'bg-warn/5'}`}>
+                            <div className="flex flex-wrap items-start justify-between gap-3">
+                              <button type="button" onClick={() => { editQuestion(question); setSelectedItemId(''); }} className="min-w-0 flex-1 text-left">
+                                <span className="block text-sm font-semibold text-gray-900">{question.question_text}</span>
+                                <span className="mt-1 block text-xs text-gray-500">{question.question_key} / {question.section} / {question.question_type}{question.is_active ? '' : ' / archived'}</span>
+                              </button>
+                              <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${question.is_active ? 'bg-success/10 text-success' : 'bg-warn/10 text-warn'}`}>{question.is_active ? 'Active' : 'Archived'}</span>
+                            </div>
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              <button type="button" onClick={() => addQuestionToSelectedSection(question)} disabled={!question.is_active || !selectedSection} className="btn-primary px-3 py-1.5">Add to Template</button>
+                              <button type="button" onClick={() => duplicateBankQuestion(question)} className="btn-subtle">Duplicate</button>
+                              {question.is_active ? (
+                                <button type="button" onClick={() => questionAction(question, 'archive')} className="btn-subtle">Archive</button>
+                              ) : (
+                                <button type="button" onClick={() => questionAction(question, 'restore')} className="btn-subtle text-accent">Restore</button>
+                              )}
+                              <button type="button" onClick={() => questionAction(question, 'delete')} disabled={!eligibility.canDelete} title={eligibility.reason} className="btn-subtle">Delete</button>
+                              {!eligibility.canDelete && <span className="text-xs text-gray-500">{eligibility.reason}</span>}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="cockpit-panel">
+                    <div className="cockpit-panel-header">
+                      <h3 className="cockpit-section-title">{editingQuestion ? 'Bank Question Properties' : 'Create Bank Question'}</h3>
+                      <p className="text-xs text-gray-500">These fields update the reusable question, not a template placement.</p>
+                    </div>
+                    <form onSubmit={submitQuestion} className="max-h-[32rem] space-y-3 overflow-y-auto p-4">
+                      <input value={questionForm.question_text} onChange={e => {
+                        const question_text = e.target.value;
+                        setQuestionForm(current => {
+                          const key = !editingQuestion ? normalizeKey(question_text) : current.question_key;
+                          return { ...current, question_text, question_key: key, response_key: !editingQuestion ? key : current.response_key };
+                        });
+                      }} placeholder="Question text" required className="w-full field-control" />
+                      <textarea value={questionForm.help_text} onChange={e => setQuestionForm(current => ({ ...current, help_text: e.target.value }))} placeholder="Help text" rows={3} className="w-full resize-none field-control" />
+                      <div className="grid grid-cols-2 gap-2">
+                        <input value={questionForm.question_key} onChange={e => setQuestionForm(current => ({ ...current, question_key: normalizeKey(e.target.value) }))} disabled={Boolean(editingQuestion)} placeholder="question_key" required className="field-control disabled:opacity-60" />
+                        <input value={questionForm.response_key} onChange={e => setQuestionForm(current => ({ ...current, response_key: normalizeKey(e.target.value) }))} disabled={Boolean(editingQuestion)} placeholder="response_key" required className="field-control disabled:opacity-60" />
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <input value={questionForm.section} onChange={e => setQuestionForm(current => ({ ...current, section: e.target.value }))} placeholder="Section" className="field-control" />
+                        <select value={questionForm.question_type} onChange={e => setQuestionForm(current => ({ ...current, question_type: e.target.value as AssessmentQuestionType }))} disabled={Boolean(editingQuestion)} className="field-control disabled:opacity-60">
+                          {QUESTION_TYPES.map(type => <option key={type} value={type}>{type}</option>)}
+                        </select>
+                      </div>
+                      <input value={questionForm.scoring_dimension} onChange={e => setQuestionForm(current => ({ ...current, scoring_dimension: e.target.value }))} placeholder="Scoring dimension" className="w-full field-control" />
+                      <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-accent">Conditional Logic</p>
+                        <select
+                          value={logicMode}
+                          onChange={e => {
+                            const mode = e.target.value as LogicMode;
+                            setLogicMode(mode);
+                            setQuestionForm(current => ({
+                              ...current,
+                              parent_question_key: mode === 'always' ? '' : current.parent_question_key,
+                              show_when_value: mode === 'always' ? '' : current.show_when_value,
+                              show_when_operator: mode === 'always' ? 'equals' : mode,
+                            }));
+                          }}
+                          className="field-control mt-3 w-full"
+                        >
+                          <option value="always">Show always</option>
+                          <option value="equals">Show if question equals value</option>
+                          <option value="includes">Show if question contains value</option>
+                        </select>
+                        {logicMode !== 'always' ? (
+                          <div className="mt-3 grid gap-2">
+                            <select value={questionForm.parent_question_key} onChange={e => setQuestionForm(current => ({ ...current, parent_question_key: e.target.value }))} className="field-control">
+                              <option value="">Choose controlling question</option>
+                              {activeQuestions.filter(question => !editingQuestion || question.id !== editingQuestion.id).map(question => (
+                                <option key={question.id} value={question.question_key}>{question.question_text}</option>
+                              ))}
+                            </select>
+                            <input value={questionForm.show_when_value} onChange={e => setQuestionForm(current => ({ ...current, show_when_value: e.target.value }))} placeholder="Value to match" className="field-control" />
+                          </div>
+                        ) : null}
+                      </div>
+                      <div className="flex gap-2">
+                        <button type="submit" disabled={saving} className="btn-primary">{saving ? 'Saving...' : editingQuestion ? 'Save Question' : 'Add Question'}</button>
+                        {editingQuestion && <button type="button" onClick={() => { setEditingQuestion(null); setQuestionForm(EMPTY_QUESTION); setLogicMode('always'); }} className="btn-secondary">Cancel</button>}
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'invites' && (
+                <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
+                  <div className="cockpit-panel">
                     <div className="cockpit-panel-header">
                       <h3 className="cockpit-section-title">Invite Links</h3>
+                      <p className="text-xs text-gray-500">Generated links for the selected template.</p>
                     </div>
                     <div className="divide-y divide-gray-200">
-                      {selectedInviteLinks.slice(0, 5).map(link => {
+                      {selectedInviteLinks.length === 0 && <p className="p-4 text-sm text-gray-500">No invite links generated for this template.</p>}
+                      {selectedInviteLinks.map(link => {
                         const url = buildInviteUrl(selectedTemplate.slug, link);
                         return (
                           <div key={link.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
@@ -921,80 +1177,42 @@ export function AssessmentTemplates() {
                       })}
                     </div>
                   </div>
-                )}
 
-                <div className="grid grid-cols-1 gap-4 2xl:grid-cols-2">
-                  <div className="rounded-lg border border-gray-200">
-                    <div className="cockpit-panel-header">
-                      <h3 className="cockpit-section-title">Template Items</h3>
-                      <p className="text-xs text-gray-500">Questions sit under the preceding heading. Remove a heading without deleting questions by unchecking/removing the heading row.</p>
+                  <div className="cockpit-card-pad">
+                    <div className="mb-4 flex items-start justify-between gap-3">
+                      <div>
+                        <h2 className="cockpit-section-title">Invite Requests</h2>
+                        <p className="mt-1 text-xs text-gray-500">{pendingInviteRequests} new request{pendingInviteRequests === 1 ? '' : 's'} awaiting review.</p>
+                      </div>
+                      <span className="rounded-full bg-accent/15 px-3 py-1 text-xs font-semibold text-accent">{inviteRequests.length}</span>
                     </div>
-                    <div className="divide-y divide-gray-200">
-                      {includedItems.length === 0 && <p className="p-4 text-sm text-gray-500">No selected questions or headings yet.</p>}
-                      {editorItems.map(({ item, hiddenByCollapse }) => item.item_type === 'section_heading' ? (
-                        <div key={item.id} className="bg-accent/5 p-4">
-                          <div className="flex items-start gap-3">
-                            <input type="checkbox" checked={item.is_included} onChange={() => toggleItem(item)} className="mt-2 accent-accent" />
-                            <div className="min-w-0 flex-1 space-y-2">
-                              <input value={item.title ?? ''} onChange={e => updateItem(item.id, { title: e.target.value })} className="field-control w-full font-semibold" />
-                              <textarea value={item.description ?? ''} onChange={e => updateItem(item.id, { description: e.target.value })} rows={2} placeholder="Heading description / help text" className="field-control w-full resize-none" />
-                              <p className="text-xs uppercase tracking-wide text-accent">Section Heading</p>
+                    <div className="max-h-[32rem] space-y-3 overflow-y-auto pr-1">
+                      {inviteRequests.length === 0 && <p className="text-sm text-gray-500">No public invite requests yet.</p>}
+                      {inviteRequests.slice(0, 20).map(request => (
+                        <div key={request.id} className="rounded-2xl border border-white/10 bg-white/5 p-3">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-semibold text-gray-900">{request.name}</p>
+                              <p className="truncate text-xs text-gray-500">{request.email}</p>
+                              {request.onlyfans_handle && <p className="mt-1 text-xs text-gray-500">@{request.onlyfans_handle}</p>}
                             </div>
-                            <div className="flex shrink-0 flex-col gap-1">
-                              <button type="button" onClick={() => toggleHeadingCollapsed(item.id)} className="btn-subtle px-2 py-1 text-xs">{collapsedHeadings[item.id] ? 'Expand' : 'Collapse'}</button>
-                              <button type="button" onClick={() => moveItem(item, -1)} className="btn-subtle px-2 py-1 text-xs">Up</button>
-                              <button type="button" onClick={() => moveItem(item, 1)} className="btn-subtle px-2 py-1 text-xs">Down</button>
-                              <button type="button" onClick={() => duplicateSection(item)} className="btn-subtle px-2 py-1 text-xs">Duplicate</button>
-                              <button type="button" onClick={() => toggleItem(item)} className="btn-subtle px-2 py-1 text-xs">Remove</button>
-                            </div>
+                            <span className="shrink-0 rounded-full bg-accent/10 px-2.5 py-1 text-xs font-semibold text-accent">{request.status}</span>
                           </div>
-                        </div>
-                      ) : (
-                        <div key={item.id} className={`p-4 transition-colors hover:bg-orange-50/40 ${item.question?.is_active ? '' : 'bg-warn/5'} ${hiddenByCollapse ? 'hidden' : ''}`}>
-                          <div className="flex items-start gap-3">
-                            <input type="checkbox" checked={item.is_included} onChange={() => toggleItem(item)} className="mt-1 accent-accent" />
-                            <div className="min-w-0 flex-1">
-                              <p className="font-medium text-gray-900">{item.question?.question_text ?? 'Missing question'}</p>
-                              <p className="mt-1 text-xs text-gray-500">{item.question?.section} / {item.question?.question_type}</p>
-                              {item.question && !item.question.is_active && <p className="mt-2 text-xs text-warn">Archived question. Remove it or restore it from the bank.</p>}
-                            </div>
-                            <div className="flex shrink-0 flex-col gap-1">
-                              <button type="button" onClick={() => moveItem(item, -1)} className="btn-subtle px-2 py-1 text-xs">Up</button>
-                              <button type="button" onClick={() => moveItem(item, 1)} className="btn-subtle px-2 py-1 text-xs">Down</button>
-                              <button type="button" onClick={() => duplicateQuestionPlacement(item)} className="btn-subtle px-2 py-1 text-xs">Duplicate</button>
-                              <button type="button" onClick={() => toggleItem(item)} className="btn-subtle px-2 py-1 text-xs">Remove</button>
-                            </div>
+                          <div className="mt-3 grid grid-cols-2 gap-2">
+                            <select value={request.status} onChange={e => changeInviteRequestStatus(request, e.target.value as CreatorInviteRequestStatus)} disabled={saving} className="field-control text-xs">
+                              {INVITE_REQUEST_STATUSES.map(status => <option key={status} value={status}>{status}</option>)}
+                            </select>
+                            <button type="button" onClick={() => createInviteFromRequest(request)} disabled={!selectedTemplate || saving} className="btn-subtle text-xs">Prepare Invite</button>
                           </div>
                         </div>
                       ))}
-                    </div>
-                  </div>
-
-                  <div className="rounded-lg border border-gray-200">
-                    <div className="cockpit-panel-header">
-                      <h3 className="cockpit-section-title">Available Active Questions</h3>
-                      <p className="text-xs text-gray-500">Archived questions are not selectable for new inclusion unless restored.</p>
-                    </div>
-                    <div className="divide-y divide-gray-200">
-                      {activeQuestions.length === 0 && <p className="p-4 text-sm text-gray-500">No active questions available.</p>}
-                      {draftItems.filter(item => item.item_type === 'question' && item.question?.is_active && !item.is_included).map(item => (
-                        <label key={item.id} className="flex cursor-pointer items-start gap-3 p-4 transition-colors hover:bg-orange-50/40">
-                          <input type="checkbox" checked={item.is_included} onChange={() => toggleItem(item)} className="mt-1 accent-accent" />
-                          <span className="min-w-0 flex-1">
-                            <span className="block font-medium text-gray-900">{item.question?.question_text}</span>
-                            <span className="mt-1 block text-xs text-gray-500">{item.question?.section} / {item.question?.question_type}</span>
-                          </span>
-                        </label>
-                      ))}
-                      {activeQuestions.length > 0 && draftItems.filter(item => item.item_type === 'question' && item.question?.is_active && !item.is_included).length === 0 && (
-                        <p className="p-4 text-sm text-gray-500">All active bank questions are selected in this template.</p>
-                      )}
                     </div>
                   </div>
                 </div>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          )}
+        </div>
 
           <div className="cockpit-panel">
             <div className="cockpit-panel-header">
@@ -1012,131 +1230,6 @@ export function AssessmentTemplates() {
               <button type="button" onClick={() => createTemplate()} disabled={saving} className="btn-primary">Create Template</button>
             </form>
           </div>
-
-          <div className="cockpit-panel">
-            <div className="cockpit-panel-header">
-              <h2 className="cockpit-section-title">Question Bank</h2>
-              <p className="text-xs text-gray-500">Archived questions stay in history and are not available for new templates unless restored.</p>
-            </div>
-            <div className="divide-y divide-gray-200">
-              {[...activeQuestions, ...archivedQuestions].map(question => {
-                const eligibility = deleteEligibility[question.id] ?? { canDelete: false, reason: 'Checking delete safety...' };
-                return (
-                  <div key={question.id} className={`p-4 transition-colors hover:bg-orange-50/40 ${question.is_active ? '' : 'bg-warn/5'}`}>
-                    <p className="font-medium text-gray-900">{question.question_text}</p>
-                    <p className="mb-3 mt-1 text-xs text-gray-500">{question.question_key} / {question.section} / {question.question_type}{question.is_active ? '' : ' / archived'}</p>
-                    <div className="flex flex-wrap gap-2">
-                      <button type="button" onClick={() => editQuestion(question)} className="btn-subtle">Edit Question</button>
-                      {question.is_active ? (
-                        <button type="button" onClick={() => questionAction(question, 'archive')} className="btn-subtle">Archive Question</button>
-                      ) : (
-                        <button type="button" onClick={() => questionAction(question, 'restore')} className="btn-subtle text-accent">Restore Question</button>
-                      )}
-                      <button type="button" onClick={() => questionAction(question, 'delete')} disabled={!eligibility.canDelete} title={eligibility.reason} className="btn-subtle">Delete Question</button>
-                      {!eligibility.canDelete && <span className="text-xs text-gray-500">{eligibility.reason}</span>}
-                    </div>
-                  </div>
-                );
-              })}
-              {questions.length === 0 && <p className="p-4 text-sm text-gray-500">No question bank questions yet.</p>}
-            </div>
-          </div>
-        </section>
-
-        <aside className="space-y-4">
-          <div className="cockpit-card-pad">
-            <div className="mb-4 flex items-start justify-between gap-3">
-              <div>
-                <h2 className="cockpit-section-title">Invite Requests</h2>
-                <p className="mt-1 text-xs text-gray-500">
-                  {pendingInviteRequests} new request{pendingInviteRequests === 1 ? '' : 's'} awaiting review.
-                </p>
-              </div>
-              <span className="rounded-full bg-accent/15 px-3 py-1 text-xs font-semibold text-accent">
-                {inviteRequests.length}
-              </span>
-            </div>
-            <div className="max-h-[28rem] space-y-3 overflow-y-auto pr-1">
-              {inviteRequests.length === 0 && (
-                <p className="text-sm text-gray-500">No public invite requests yet.</p>
-              )}
-              {inviteRequests.slice(0, 12).map(request => (
-                <div key={request.id} className="rounded-2xl border border-white/10 bg-white/5 p-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold text-gray-900">{request.name}</p>
-                      <p className="truncate text-xs text-gray-500">{request.email}</p>
-                      {request.onlyfans_handle && (
-                        <p className="mt-1 text-xs text-gray-500">@{request.onlyfans_handle}</p>
-                      )}
-                    </div>
-                    <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${
-                      request.status === 'Approved'
-                        ? 'bg-success/10 text-success'
-                        : request.status === 'Declined'
-                          ? 'bg-pink/10 text-pink'
-                          : request.status === 'Reviewed'
-                            ? 'bg-warn/10 text-warn'
-                            : 'bg-accent/10 text-accent'
-                    }`}>
-                      {request.status}
-                    </span>
-                  </div>
-                  <p className="mt-2 text-xs text-gray-500">
-                    Requested {new Date(request.created_at).toLocaleDateString()}
-                  </p>
-                  <div className="mt-3 grid grid-cols-2 gap-2">
-                    <select
-                      value={request.status}
-                      onChange={e => changeInviteRequestStatus(request, e.target.value as CreatorInviteRequestStatus)}
-                      disabled={saving}
-                      className="field-control text-xs"
-                    >
-                      {INVITE_REQUEST_STATUSES.map(status => <option key={status} value={status}>{status}</option>)}
-                    </select>
-                    <button
-                      type="button"
-                      onClick={() => createInviteFromRequest(request)}
-                      disabled={!selectedTemplate || saving}
-                      className="btn-subtle text-xs"
-                    >
-                      Prepare Invite
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="cockpit-card-pad">
-          <h2 className="cockpit-section-title">{editingQuestion ? 'Edit Question' : 'Add Question'}</h2>
-          <form onSubmit={submitQuestion} className="mt-4 space-y-3">
-            <input value={questionForm.question_text} onChange={e => {
-              const question_text = e.target.value;
-              setQuestionForm(current => {
-                const key = !editingQuestion ? normalizeKey(question_text) : current.question_key;
-                return { ...current, question_text, question_key: key, response_key: !editingQuestion ? key : current.response_key };
-              });
-            }} placeholder="Question text" required className="w-full field-control" />
-            <textarea value={questionForm.help_text} onChange={e => setQuestionForm(current => ({ ...current, help_text: e.target.value }))} placeholder="Help text" rows={3} className="w-full resize-none field-control" />
-            <div className="grid grid-cols-2 gap-2">
-              <input value={questionForm.question_key} onChange={e => setQuestionForm(current => ({ ...current, question_key: normalizeKey(e.target.value) }))} disabled={Boolean(editingQuestion)} placeholder="question_key" required className="field-control disabled:opacity-60" />
-              <input value={questionForm.response_key} onChange={e => setQuestionForm(current => ({ ...current, response_key: normalizeKey(e.target.value) }))} disabled={Boolean(editingQuestion)} placeholder="response_key" required className="field-control disabled:opacity-60" />
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <input value={questionForm.section} onChange={e => setQuestionForm(current => ({ ...current, section: e.target.value }))} disabled={Boolean(editingQuestion)} placeholder="Section" className="field-control disabled:opacity-60" />
-              <select value={questionForm.question_type} onChange={e => setQuestionForm(current => ({ ...current, question_type: e.target.value as AssessmentQuestionType }))} disabled={Boolean(editingQuestion)} className="field-control disabled:opacity-60">
-                {QUESTION_TYPES.map(type => <option key={type} value={type}>{type}</option>)}
-              </select>
-            </div>
-            <input value={questionForm.scoring_dimension} onChange={e => setQuestionForm(current => ({ ...current, scoring_dimension: e.target.value }))} disabled={Boolean(editingQuestion)} placeholder="Scoring dimension" className="w-full field-control disabled:opacity-60" />
-            <div className="flex gap-2">
-              <button type="button" onClick={() => submitQuestion()} disabled={saving} className="btn-primary">{saving ? 'Saving...' : editingQuestion ? 'Save Question' : 'Add Question'}</button>
-              {editingQuestion && <button type="button" onClick={() => { setEditingQuestion(null); setQuestionForm(EMPTY_QUESTION); }} className="btn-secondary">Cancel</button>}
-            </div>
-          </form>
-          </div>
-        </aside>
       </div>
 
       {inviteModalOpen && selectedTemplate && (
