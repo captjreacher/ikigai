@@ -1,6 +1,6 @@
 # Creators Cockpit
 
-Creator Ikigai & Brand Strategy Wizard — public assessment tool + agency management workspace for OFManager.com's creator pipeline.
+Find Your Vertical — public creator vertical assessment tool + agency management workspace for OFManager.com's creator pipeline.
 
 ## Architecture
 
