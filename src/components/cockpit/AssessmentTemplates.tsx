@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { type DragEvent, FormEvent, useEffect, useMemo, useState } from 'react';
 import {
   archiveQuestion,
   createAssessmentInviteLink,
@@ -30,6 +30,9 @@ import type {
 
 type DraftItem = CreatorAssessmentTemplateItem;
 type DeleteEligibility = { canDelete: boolean; reason?: string };
+type BuilderTab = 'builder' | 'bank' | 'invites';
+type SectionGroup = { id: string; title: string; description: string; heading: DraftItem | null; questions: DraftItem[] };
+type LogicMode = 'always' | 'equals' | 'includes';
 
 const QUESTION_TYPES: AssessmentQuestionType[] = ['short_text', 'long_text', 'single_choice', 'multi_choice', 'boolean', 'scale'];
 const EMPTY_QUESTION = {
@@ -40,6 +43,9 @@ const EMPTY_QUESTION = {
   section: 'About You',
   question_type: 'long_text' as AssessmentQuestionType,
   scoring_dimension: '',
+  parent_question_key: '',
+  show_when_value: '',
+  show_when_operator: 'equals' as 'equals' | 'includes',
 };
 const EMPTY_TEMPLATE = { name: '', slug: '', description: '', duplicateFromTemplateId: '' };
 const EMPTY_INVITE = { creatorName: '', creatorEmail: '', notes: '' };
@@ -112,6 +118,13 @@ export function AssessmentTemplates() {
   const [success, setSuccess] = useState('');
   const [previewOpen, setPreviewOpen] = useState(false);
   const [collapsedHeadings, setCollapsedHeadings] = useState<Record<string, boolean>>({});
+  const [activeTab, setActiveTab] = useState<BuilderTab>('builder');
+  const [selectedSectionId, setSelectedSectionId] = useState('');
+  const [selectedItemId, setSelectedItemId] = useState('');
+  const [bankSearch, setBankSearch] = useState('');
+  const [bankTypeFilter, setBankTypeFilter] = useState<'all' | AssessmentQuestionType>('all');
+  const [draggedItemId, setDraggedItemId] = useState('');
+  const [draggedSectionId, setDraggedSectionId] = useState('');
 
   const selectedTemplate = templates.find(template => template.id === selectedTemplateId) ?? templates[0] ?? null;
   const selectedInviteLinks = inviteLinks.filter(link => link.template_id === selectedTemplate?.id);
@@ -168,6 +181,55 @@ export function AssessmentTemplates() {
     && includedItems.some(item => item.item_type === 'question' && item.question?.is_active)
   );
   const pendingInviteRequests = inviteRequests.filter(request => request.status === 'New').length;
+  const sectionGroups = useMemo<SectionGroup[]>(() => {
+    const groups: SectionGroup[] = [];
+    let current: SectionGroup | null = null;
+
+    for (const item of [...includedItems].sort((a, b) => a.sort_order - b.sort_order)) {
+      if (item.item_type === 'section_heading') {
+        current = {
+          id: item.id,
+          title: item.title?.trim() || 'Untitled Section',
+          description: item.description ?? '',
+          heading: item,
+          questions: [],
+        };
+        groups.push(current);
+        continue;
+      }
+
+      if (!current) {
+        current = {
+          id: 'unsectioned',
+          title: 'Unsectioned',
+          description: '',
+          heading: null,
+          questions: [],
+        };
+        groups.push(current);
+      }
+      current.questions.push(item);
+    }
+
+    return groups;
+  }, [includedItems]);
+  const selectedSection = sectionGroups.find(section => section.id === selectedSectionId) ?? sectionGroups[0] ?? null;
+  const selectedItem = draftItems.find(item => item.id === selectedItemId) ?? selectedSection?.heading ?? selectedSection?.questions[0] ?? null;
+  const selectedQuestion = selectedItem?.question ?? editingQuestion;
+  const filteredBankQuestions = useMemo(() => {
+    const query = bankSearch.trim().toLowerCase();
+    return questions.filter(question => {
+      const typeMatches = bankTypeFilter === 'all' || question.question_type === bankTypeFilter;
+      if (!typeMatches) return false;
+      if (!query) return true;
+      return [
+        question.question_text,
+        question.question_key,
+        question.section,
+        question.scoring_dimension ?? '',
+      ].some(value => value.toLowerCase().includes(query));
+    });
+  }, [bankSearch, bankTypeFilter, questions]);
 
   const initialState = useMemo(() => {
     if (!selectedTemplate) return '';
@@ -253,6 +315,8 @@ export function AssessmentTemplates() {
       setTemplateSlug('');
       setTemplateDescription('');
       setDraftItems([]);
+      setSelectedSectionId('');
+      setSelectedItemId('');
       return;
     }
     setTemplateName(selectedTemplate.name);
@@ -260,6 +324,18 @@ export function AssessmentTemplates() {
     setTemplateDescription(selectedTemplate.description ?? '');
     setDraftItems(draftItemsFor(selectedTemplate, questions));
   }, [selectedTemplateId, templates, questions]);
+
+  useEffect(() => {
+    if (sectionGroups.length === 0) {
+      setSelectedSectionId('');
+      setSelectedItemId('');
+      return;
+    }
+    if (!sectionGroups.some(section => section.id === selectedSectionId)) {
+      setSelectedSectionId(sectionGroups[0].id);
+      setSelectedItemId(sectionGroups[0].heading?.id ?? sectionGroups[0].questions[0]?.id ?? '');
+    }
+  }, [sectionGroups, selectedSectionId]);
 
   useEffect(() => {
     const onBeforeUnload = (event: BeforeUnloadEvent) => {
@@ -328,27 +404,29 @@ export function AssessmentTemplates() {
     ]));
   };
 
+  const selectBuilderItem = (item: DraftItem | null) => {
+    if (!item) return;
+    setSelectedItemId(item.id);
+    setEditingQuestion(item.question ?? null);
+    if (item.question) editQuestion(item.question);
+  };
+
   const updateItem = (id: string, changes: Partial<DraftItem>) => {
     setDraftItems(current => current.map(item => item.id === id ? { ...item, ...changes } : item));
   };
 
-  const toggleItem = (item: DraftItem) => {
-    if (item.item_type === 'question' && !item.question?.is_active && !item.is_included) return;
-    updateItem(item.id, { is_included: !item.is_included });
+  const removeItemFromTemplate = (item: DraftItem) => {
+    updateItem(item.id, { is_included: false });
+    setSelectedItemId('');
   };
 
-  const moveItem = (item: DraftItem, direction: -1 | 1) => {
-    const visible = [...includedItems].sort((a, b) => a.sort_order - b.sort_order);
-    const index = visible.findIndex(current => current.id === item.id);
-    const target = index + direction;
-    if (target < 0 || target >= visible.length) return;
-    [visible[index], visible[target]] = [visible[target], visible[index]];
+  const reorderVisibleItems = (visible: DraftItem[]) => {
     const order = new Map(visible.map((current, orderIndex) => [current.id, (orderIndex + 1) * 10]));
     setDraftItems(current => ordered(current.map(row => order.has(row.id) ? { ...row, sort_order: order.get(row.id)! } : row)));
   };
 
-  const duplicateQuestionPlacement = (item: DraftItem) => {
-    if (item.item_type !== 'question' || !item.question) return;
+  const duplicateQuestionPlacement = (item: DraftItem): DraftItem | null => {
+    if (item.item_type !== 'question' || !item.question) return null;
     const visible = [...includedItems].sort((a, b) => a.sort_order - b.sort_order);
     const index = visible.findIndex(current => current.id === item.id);
     const clone: DraftItem = {
@@ -364,6 +442,80 @@ export function AssessmentTemplates() {
       ...current.map(row => order.has(row.id) ? { ...row, sort_order: order.get(row.id)! } : row),
       { ...clone, sort_order: order.get(clone.id)! },
     ]));
+    return clone;
+  };
+
+  const addQuestionToSelectedSection = (question: CreatorQuestion) => {
+    if (!selectedTemplate || !selectedSection) return;
+    const visible = [...includedItems].sort((a, b) => a.sort_order - b.sort_order);
+    const sectionIndex = selectedSection.heading
+      ? visible.findIndex(item => item.id === selectedSection.heading?.id)
+      : -1;
+    const nextSectionIndex = visible.findIndex((item, index) => (
+      index > Math.max(sectionIndex, -1)
+      && item.item_type === 'section_heading'
+    ));
+    const insertIndex = nextSectionIndex === -1 ? visible.length : nextSectionIndex;
+    const available = draftItems.find(item => (
+      item.item_type === 'question'
+      && item.question_id === question.id
+      && !item.is_included
+    ));
+    const item: DraftItem = available
+      ? { ...available, is_included: true }
+      : {
+          id: `new-question-placement-${Date.now()}`,
+          template_id: selectedTemplate.id,
+          item_type: 'question',
+          question_id: question.id,
+          title: null,
+          description: null,
+          is_included: true,
+          sort_order: 0,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          question,
+        };
+    const nextVisible = [...visible.slice(0, insertIndex), item, ...visible.slice(insertIndex)];
+    const order = new Map(nextVisible.map((current, orderIndex) => [current.id, (orderIndex + 1) * 10]));
+    setDraftItems(current => {
+      const hasItem = current.some(row => row.id === item.id);
+      const rows = hasItem
+        ? current.map(row => row.id === item.id ? item : row)
+        : [...current, item];
+      return ordered(rows.map(row => order.has(row.id) ? { ...row, sort_order: order.get(row.id)! } : row));
+    });
+    setSelectedItemId(item.id);
+    editQuestion(question);
+  };
+
+  const onSectionDrop = (targetSectionId: string) => {
+    if (!draggedSectionId || draggedSectionId === targetSectionId) return;
+    const sourceIndex = sectionGroups.findIndex(section => section.id === draggedSectionId);
+    const targetIndex = sectionGroups.findIndex(section => section.id === targetSectionId);
+    if (sourceIndex < 0 || targetIndex < 0) return;
+    const nextGroups = [...sectionGroups];
+    const [moved] = nextGroups.splice(sourceIndex, 1);
+    nextGroups.splice(targetIndex, 0, moved);
+    reorderVisibleItems(nextGroups.flatMap(section => [
+      ...(section.heading ? [section.heading] : []),
+      ...section.questions,
+    ]));
+    setDraggedSectionId('');
+  };
+
+  const onQuestionDrop = (targetItemId: string) => {
+    if (!draggedItemId || draggedItemId === targetItemId || !selectedSection) return;
+    const visible = [...includedItems].sort((a, b) => a.sort_order - b.sort_order);
+    const sectionQuestionIds = new Set(selectedSection.questions.map(item => item.id));
+    if (!sectionQuestionIds.has(draggedItemId) || !sectionQuestionIds.has(targetItemId)) return;
+    const dragged = visible.find(item => item.id === draggedItemId);
+    if (!dragged) return;
+    const withoutDragged = visible.filter(item => item.id !== draggedItemId);
+    const targetIndex = withoutDragged.findIndex(item => item.id === targetItemId);
+    withoutDragged.splice(targetIndex, 0, dragged);
+    reorderVisibleItems(withoutDragged);
+    setDraggedItemId('');
   };
 
   const duplicateSection = (heading: DraftItem) => {
@@ -411,11 +563,17 @@ export function AssessmentTemplates() {
     setSuccess('');
     try {
       if (editingQuestion) {
-        await updateQuestion(editingQuestion.id, {
+        const updated = await updateQuestion(editingQuestion.id, {
           question_text: questionForm.question_text,
           help_text: questionForm.help_text || null,
+          section: questionForm.section,
+          scoring_dimension: questionForm.scoring_dimension || null,
+          parent_question_key: questionForm.parent_question_key || null,
+          show_when_value: questionForm.parent_question_key ? questionForm.show_when_value || null : null,
+          show_when_operator: questionForm.show_when_operator,
           options: editingQuestion.options,
         });
+        setEditingQuestion(updated);
         setSuccess('Question updated.');
       } else {
         await createQuestion({
@@ -426,6 +584,9 @@ export function AssessmentTemplates() {
           section: questionForm.section,
           question_type: questionForm.question_type,
           scoring_dimension: questionForm.scoring_dimension || null,
+          parent_question_key: questionForm.parent_question_key || null,
+          show_when_value: questionForm.parent_question_key ? questionForm.show_when_value || null : null,
+          show_when_operator: questionForm.show_when_operator,
           options: [],
         });
         setSuccess('Question created.');
@@ -450,6 +611,9 @@ export function AssessmentTemplates() {
       section: question.section,
       question_type: question.question_type,
       scoring_dimension: question.scoring_dimension ?? '',
+      parent_question_key: question.parent_question_key ?? '',
+      show_when_value: question.show_when_value ?? '',
+      show_when_operator: question.show_when_operator ?? 'equals',
     });
   };
 
@@ -597,6 +761,37 @@ export function AssessmentTemplates() {
       setSuccess(action === 'archive' ? 'Question archived.' : action === 'restore' ? 'Question restored.' : 'Question deleted.');
     } catch (e) {
       setError(e instanceof Error ? e.message : `Failed to ${action} question`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const duplicateBankQuestion = async (question: CreatorQuestion) => {
+    setSaving(true);
+    setError('');
+    setSuccess('');
+    try {
+      const suffix = Date.now().toString(36);
+      const duplicate = await createQuestion({
+        question_key: `${question.question_key}_copy_${suffix}`,
+        response_key: `${question.response_key}_copy_${suffix}`,
+        question_text: `${question.question_text} Copy`,
+        help_text: question.help_text,
+        section: question.section,
+        question_type: question.question_type,
+        scoring_dimension: question.scoring_dimension,
+        parent_question_key: question.parent_question_key,
+        show_when_value: question.show_when_value,
+        show_when_operator: question.show_when_operator,
+        options: question.options,
+      });
+      await load(selectedTemplateId);
+      editQuestion(duplicate);
+      setSelectedItemId('');
+      setActiveTab('bank');
+      setSuccess('Question duplicated in the bank.');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to duplicate question');
     } finally {
       setSaving(false);
     }

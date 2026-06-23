@@ -9,11 +9,12 @@ const MAGIC_LINK_SUCCESS_MESSAGE = 'Magic link sent. Check your inbox.';
 const LOGIN_ERROR_MESSAGE = 'Unable to send a magic link. Check the email address or contact the site owner for access.';
 const EMPTY_INVITE_REQUEST = { name: '', email: '', onlyfansHandle: '' };
 const INVITE_BENEFITS = [
-  'Discover your strongest content niche',
-  'Understand your growth potential',
+  'Identify your content niche fit',
+  'Understand your business readiness and coachability',
   'Receive a personalised creator report',
-  'Learn which mentoring and growth services suit you',
+  'Discover mentoring opportunities matched to your growth potential',
 ];
+const CAPABILITY_CHIPS = ['Find Your Content Niche', 'Business Mentoring', 'Scale & Systems'];
 
 export function AuthGate({ children }: { children: ReactNode }) {
   const location = useLocation();
@@ -91,105 +92,99 @@ export function AuthGate({ children }: { children: ReactNode }) {
 
   if (!session) {
     return (
-      <div className="min-h-screen bg-surface-2 px-4 py-6 text-charcoal sm:px-6 lg:px-8">
-        <div className="mx-auto grid min-h-[calc(100vh-3rem)] w-full max-w-6xl items-center gap-8 lg:grid-cols-[minmax(0,1fr)_460px]">
-          <section className="py-6">
-            <div className="mb-7 flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent text-sm font-black text-white shadow-lg shadow-orange-950/40">
+      <div className="min-h-screen bg-surface-2 px-4 py-5 text-charcoal sm:px-6 lg:px-8">
+        <main className="mx-auto flex min-h-[calc(100vh-2.5rem)] w-full max-w-5xl flex-col justify-center">
+          <section className="rounded-[2rem] border border-white/10 bg-surface/80 p-5 shadow-2xl shadow-black/25 backdrop-blur sm:p-7 lg:p-8">
+            <div className="flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-accent text-sm font-black text-white shadow-lg shadow-orange-950/40">
                 FYV
               </div>
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-accent">MGRNZ</p>
-                <p className="text-sm text-charcoal-2">Creator Advisory Platform</p>
+                <p className="text-sm font-semibold text-charcoal">Find Your Vertical</p>
+                <p className="text-xs text-charcoal-2">Creator Growth Framework</p>
               </div>
             </div>
 
-            <p className="cockpit-eyebrow">Find Your Vertical</p>
-            <h1 className="mt-4 max-w-3xl text-5xl font-bold tracking-normal text-charcoal sm:text-6xl">
-              Find Your Vertical
+            <h1 className="mt-6 max-w-4xl text-4xl font-bold leading-tight tracking-normal text-charcoal sm:text-5xl lg:text-6xl">
+              Discover the creator niche you're most likely to succeed in.
             </h1>
-            <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-300">
-              Helping creators identify their strongest content opportunities, monetisation pathways, and growth potential.
+            <p className="mt-4 max-w-3xl text-base leading-7 text-slate-300 sm:text-lg">
+              Find Your Vertical reviews your content niche fit, business readiness, coachability, and growth potential so we can match you with the assessment, report, and mentoring opportunities that make sense for your next stage.
             </p>
-            <div className="mt-8 max-w-2xl space-y-5 text-sm leading-7 text-charcoal-2 sm:text-base">
-              <p>
-                Find Your Vertical is an assessment and advisory platform designed for creators who want clarity, direction, and a practical plan for growth.
-              </p>
-              <p>
-                Complete an assessment, receive a personalised creator report, and discover opportunities to improve positioning, monetisation, automation, and long-term creator success.
-              </p>
-            </div>
 
-            <div className="mt-8 grid max-w-2xl gap-3 sm:grid-cols-3">
-              {['Positioning clarity', 'Monetisation pathways', 'Growth potential'].map(item => (
-                <div key={item} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium text-slate-200">
+            <div className="mt-5 grid gap-3 sm:grid-cols-3">
+              {CAPABILITY_CHIPS.map(item => (
+                <div key={item} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-slate-100">
                   {item}
                 </div>
               ))}
             </div>
-          </section>
 
-          <div className="rounded-3xl border border-accent/35 bg-surface/95 p-5 shadow-2xl shadow-orange-950/25 backdrop-blur sm:p-6">
-            <div className="mb-5 rounded-2xl border border-accent/20 bg-accent/10 px-4 py-3">
-              <p className="text-xs font-semibold uppercase tracking-wide text-accent">Creator invitation</p>
-              <h2 className="mt-2 text-2xl font-bold leading-tight text-charcoal sm:text-3xl">
-                Want personalised creator guidance?
-              </h2>
-              <p className="mt-3 text-sm leading-6 text-slate-300">
-                Request an invitation and we'll review your profile for access to the Find Your Vertical assessment and creator growth programme.
-              </p>
+            <div className="mt-6 grid gap-5 lg:grid-cols-[minmax(0,0.9fr)_minmax(360px,1fr)] lg:items-start">
+              <div className="rounded-3xl border border-accent/30 bg-accent/10 p-4 shadow-xl shadow-orange-950/20">
+                <p className="text-xs font-semibold uppercase tracking-wide text-accent">Invite request</p>
+                <h2 className="mt-2 text-2xl font-bold leading-tight text-charcoal">Want personalised creator guidance?</h2>
+                <p className="mt-2 text-sm leading-6 text-slate-300">
+                  Request an invitation and we'll review your profile for access to the Find Your Vertical assessment and creator growth programme.
+                </p>
+                <ul className="mt-4 grid gap-2 text-sm leading-5 text-slate-200">
+                  {INVITE_BENEFITS.map(benefit => (
+                    <li key={benefit} className="flex gap-2.5">
+                      <span aria-hidden="true" className="text-success">✓</span>
+                      <span>{benefit}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <form onSubmit={handleInviteRequest} className="grid gap-3 rounded-3xl border border-white/10 bg-white/[0.04] p-4">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <input
+                    value={inviteRequest.name}
+                    onChange={e => setInviteRequest(current => ({ ...current, name: e.target.value }))}
+                    placeholder="Name"
+                    required
+                    className="field-control w-full"
+                  />
+                  <input
+                    type="email"
+                    value={inviteRequest.email}
+                    onChange={e => setInviteRequest(current => ({ ...current, email: e.target.value }))}
+                    placeholder="Email"
+                    required
+                    className="field-control w-full"
+                  />
+                </div>
+                <input
+                  value={inviteRequest.onlyfansHandle}
+                  onChange={e => setInviteRequest(current => ({ ...current, onlyfansHandle: e.target.value }))}
+                  placeholder="OnlyFans Handle (optional)"
+                  className="field-control w-full"
+                />
+                <button type="submit" disabled={requestingInvite} className="btn-primary min-h-12 w-full text-base shadow-orange-950/40">
+                  {requestingInvite ? 'Requesting...' : 'Get My Assessment Invite →'}
+                </button>
+                {inviteMessage && (
+                  <p
+                    className={`text-sm ${inviteMessageKind === 'error' ? 'text-pink' : 'text-success'}`}
+                    role={inviteMessageKind === 'error' ? 'alert' : 'status'}
+                  >
+                    {inviteMessage}
+                  </p>
+                )}
+              </form>
             </div>
-            <ul className="mb-5 space-y-3 text-sm leading-6 text-slate-200">
-              {INVITE_BENEFITS.map(benefit => (
-                <li key={benefit} className="flex gap-3">
-                  <span aria-hidden="true" className="mt-0.5 text-success">✓</span>
-                  <span>{benefit}</span>
-                </li>
-              ))}
-            </ul>
-            <form onSubmit={handleInviteRequest} className="space-y-3">
-              <input
-                value={inviteRequest.name}
-                onChange={e => setInviteRequest(current => ({ ...current, name: e.target.value }))}
-                placeholder="Name"
-                required
-                className="field-control w-full"
-              />
-              <input
-                type="email"
-                value={inviteRequest.email}
-                onChange={e => setInviteRequest(current => ({ ...current, email: e.target.value }))}
-                placeholder="Email"
-                required
-                className="field-control w-full"
-              />
-              <input
-                value={inviteRequest.onlyfansHandle}
-                onChange={e => setInviteRequest(current => ({ ...current, onlyfansHandle: e.target.value }))}
-                placeholder="OnlyFans Handle (optional)"
-                className="field-control w-full"
-              />
-              <button type="submit" disabled={requestingInvite} className="btn-primary min-h-12 w-full text-base shadow-orange-950/40">
-                {requestingInvite ? 'Requesting...' : 'Get My Assessment Invite →'}
-              </button>
-            </form>
-            {inviteMessage && (
-              <p
-                className={`mt-4 text-sm ${inviteMessageKind === 'error' ? 'text-pink' : 'text-success'}`}
-                role={inviteMessageKind === 'error' ? 'alert' : 'status'}
-              >
-                {inviteMessage}
-              </p>
-            )}
 
             <div className="my-5 h-px bg-white/10" />
 
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-              <div className="mb-3">
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3.5">
+              <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
+                <div>
                 <h2 className="text-base font-bold text-charcoal">Already invited?</h2>
                 <p className="mt-1 text-sm text-charcoal-2">Sign in with your invited email address.</p>
+                </div>
               </div>
-              <form onSubmit={handleLogin} className="space-y-3">
+              <form onSubmit={handleLogin} className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_220px]">
                 <input
                   type="email"
                   name="email"
@@ -218,8 +213,8 @@ export function AuthGate({ children }: { children: ReactNode }) {
                 </p>
               )}
             </div>
-          </div>
-        </div>
+          </section>
+        </main>
       </div>
     );
   }

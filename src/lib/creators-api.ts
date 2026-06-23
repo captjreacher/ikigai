@@ -848,13 +848,18 @@ export async function createQuestion(input: {
 
 export async function updateQuestion(
   id: string,
-  input: Pick<CreatorQuestion, 'question_text' | 'help_text'> & Pick<Partial<CreatorQuestion>, 'options'>
+  input: Pick<CreatorQuestion, 'question_text' | 'help_text'> & Pick<Partial<CreatorQuestion>, 'options' | 'section' | 'scoring_dimension' | 'parent_question_key' | 'show_when_value' | 'show_when_operator'>
 ): Promise<CreatorQuestion> {
   const { data, error } = await supabase
     .from('creator_question_bank')
     .update({
       question_text: input.question_text,
       help_text: input.help_text,
+      ...(input.section !== undefined ? { section: input.section } : {}),
+      ...(input.scoring_dimension !== undefined ? { scoring_dimension: input.scoring_dimension } : {}),
+      ...(input.parent_question_key !== undefined ? { parent_question_key: input.parent_question_key } : {}),
+      ...(input.show_when_value !== undefined ? { show_when_value: input.show_when_value } : {}),
+      ...(input.show_when_operator !== undefined ? { show_when_operator: input.show_when_operator } : {}),
       ...(input.options ? { options: input.options } : {}),
     })
     .eq('id', id)
