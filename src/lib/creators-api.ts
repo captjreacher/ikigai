@@ -72,6 +72,35 @@ function normalizeOnlyFansHandle(value: unknown): string | null {
   return text.replace(/^@+/, '').trim().toLowerCase();
 }
 
+function slugify(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '') || 'template';
+}
+
+function uuidOrNull(value: string | null | undefined): string | null {
+  return value && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
+    ? value
+    : null;
+}
+
+function respondentSnapshot(responses: AssessmentResponses): Record<string, unknown> {
+  return {
+    first_name: normalizeNullableText(responses.first_name),
+    last_name: normalizeNullableText(responses.last_name),
+    full_name: normalizeNullableText(responses.full_name),
+    email: normalizeEmail(responses.email),
+    onlyfans_handle: normalizeOnlyFansHandle(responses.onlyfans_handle),
+    model_name: normalizeNullableText(responses.model_name),
+    city: normalizeNullableText(responses.city),
+    country: normalizeNullableText(responses.country),
+    consent: Boolean(responses.consent),
+    mailing_list_opt_out: Boolean(responses.mailing_list_opt_out),
+  };
+}
+
 async function findExistingCreatorProfile(
   email: string | null,
   onlyfansHandle: string | null
@@ -250,6 +279,28 @@ export async function getDefaultAssessmentTemplate(): Promise<CreatorAssessmentR
   return flattenTemplate(template, questionRows, itemRows);
 }
 
+export async function getAssessmentTemplateBySlug(slug: string): Promise<CreatorAssessmentRuntimeTemplate | null> {
+  const normalizedSlug = slugify(slug);
+  const { data, error } = await (supabase as any)
+    .from('creator_assessment_templates')
+    .select('*')
+    .eq('slug', normalizedSlug)
+    .eq('is_active', true)
+    .eq('is_public', true)
+    .maybeSingle();
+
+  if (error) throw new Error(`Failed to load assessment template: ${error.message}`);
+  if (!data) return null;
+
+  const template = data as CreatorAssessmentTemplate;
+  const [questionRows, itemRows] = await Promise.all([
+    loadTemplateQuestionRows([template.id]),
+    loadTemplateItemRows([template.id]),
+  ]);
+
+  return flattenTemplate(template, questionRows, itemRows);
+}
+
 export async function submitAssessment(
   responses: AssessmentResponses,
   template?: CreatorAssessmentRuntimeTemplate | null
@@ -268,10 +319,14 @@ export async function submitAssessment(
   const slug = generateReportSlug(responses.full_name);
   const runtimeTemplate = template ?? await getDefaultAssessmentTemplate();
   const includedQuestions = (runtimeTemplate?.questions ?? []).filter(q => q.is_included);
+  const respondent = respondentSnapshot(responses);
   const assessmentSnapshot = runtimeTemplate
     ? {
         template_id: runtimeTemplate.id,
+        template_slug: runtimeTemplate.slug,
         template_name: runtimeTemplate.name,
+        template_description: runtimeTemplate.description,
+        captured_at: new Date().toISOString(),
         question_snapshot: includedQuestions,
       }
     : null;
@@ -307,20 +362,21 @@ export async function submitAssessment(
   const profileId = profile.id;
 
   // 3. Create assessment
-  const { data: assessment, error: assessmentErr } = await supabase
-    .from('creator_assessments')
-    .insert({
-      creator_profile_id: profileId,
-      responses,
-      assessment_snapshot: assessmentSnapshot,
-      creator_dna_score: result.scores.creator_dna,
-      brand_clarity_score: result.scores.brand_clarity,
-      monetisation_score: result.scores.monetisation,
-      consistency_score: result.scores.consistency,
-      agency_opportunity_score: result.scores.agency_opportunity,
-    })
-    .select()
-    .single();
+  const { data: assessment, error: assessmentErr } = await (supabase as any)
+    .rpc('submit_creator_assessment', {
+      p_creator_profile_id: profileId,
+      p_template_id: uuidOrNull(runtimeTemplate?.id),
+      p_template_slug: runtimeTemplate?.slug ?? null,
+      p_responses: responses,
+      p_answers: responses,
+      p_respondent: respondent,
+      p_assessment_snapshot: assessmentSnapshot,
+      p_creator_dna_score: result.scores.creator_dna,
+      p_brand_clarity_score: result.scores.brand_clarity,
+      p_monetisation_score: result.scores.monetisation,
+      p_consistency_score: result.scores.consistency,
+      p_agency_opportunity_score: result.scores.agency_opportunity,
+    });
 
   if (assessmentErr) throw new Error(`Failed to save assessment: ${assessmentErr.message}`);
 
@@ -914,6 +970,7 @@ export async function saveTemplateItems(
 
 export async function createAssessmentTemplate(input: {
   name: string;
+  slug?: string | null;
   description?: string | null;
   duplicateFromTemplateId?: string | null;
 }): Promise<CreatorAssessmentTemplate> {
@@ -921,7 +978,9 @@ export async function createAssessmentTemplate(input: {
     .from('creator_assessment_templates')
     .insert({
       name: input.name,
+      slug: slugify(input.slug || input.name),
       description: input.description ?? null,
+      is_public: true,
       is_active: false,
       is_default: false,
     })
@@ -980,11 +1039,15 @@ export async function createAssessmentTemplate(input: {
 
 export async function updateAssessmentTemplate(
   templateId: string,
-  input: Partial<Pick<CreatorAssessmentTemplate, 'name' | 'description'>>
+  input: Partial<Pick<CreatorAssessmentTemplate, 'name' | 'slug' | 'description'>>
 ): Promise<void> {
+  const payload = {
+    ...input,
+    ...(input.slug !== undefined ? { slug: slugify(input.slug) } : {}),
+  };
   const { error } = await supabase
     .from('creator_assessment_templates')
-    .update(input)
+    .update(payload)
     .eq('id', templateId);
 
   if (error) throw new Error(`Failed to update template: ${error.message}`);

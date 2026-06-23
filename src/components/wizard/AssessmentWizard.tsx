@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { getDefaultAssessmentTemplate, submitAssessment } from '@/lib/creators-api';
+import { useNavigate, useParams } from 'react-router-dom';
+import { getAssessmentTemplateBySlug, getDefaultAssessmentTemplate, submitAssessment } from '@/lib/creators-api';
 import type {
   AssessmentQuestionOption,
   AssessmentResponses,
@@ -50,8 +50,10 @@ const SECTION_DESCRIPTIONS: Record<string, string> = {
 
 const FALLBACK_TEMPLATE: CreatorAssessmentRuntimeTemplate = {
   id: 'legacy-fallback',
+  slug: 'default',
   name: 'Default Creator Assessment',
   description: 'Legacy fallback used before assessment template tables are available.',
+  is_public: true,
   is_default: true,
   is_active: true,
   created_at: '',
@@ -441,11 +443,27 @@ function normalizeRuntimeTemplate(template: CreatorAssessmentRuntimeTemplate): C
   };
 }
 
-export function AssessmentWizard() {
+function AssessmentNotFound() {
+  return (
+    <div className="min-h-[100dvh] w-full px-4 py-10">
+      <div className="mx-auto flex min-h-[70dvh] max-w-lg flex-col items-center justify-center text-center">
+        <h1 className="font-display text-3xl font-bold text-gray-100">Assessment not found</h1>
+        <p className="mt-3 text-sm leading-6 text-gray-400">
+          This assessment link may have changed or is no longer active. Please check the URL or request a fresh link.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+export function AssessmentWizard({ templateSlug }: { templateSlug?: string }) {
+  const params = useParams<{ templateSlug?: string }>();
+  const resolvedTemplateSlug = templateSlug ?? params.templateSlug;
   const [step, setStep] = useState(0);
   const [data, setData] = useState<AssessmentResponses>(INITIAL);
   const [template, setTemplate] = useState<CreatorAssessmentRuntimeTemplate | null>(null);
   const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
@@ -453,9 +471,21 @@ export function AssessmentWizard() {
   useEffect(() => {
     let mounted = true;
 
-    getDefaultAssessmentTemplate()
+    setLoading(true);
+    setNotFound(false);
+
+    const loadTemplate = resolvedTemplateSlug
+      ? getAssessmentTemplateBySlug(resolvedTemplateSlug)
+      : getDefaultAssessmentTemplate();
+
+    loadTemplate
       .then(runtimeTemplate => {
         if (!mounted) return;
+        if (!runtimeTemplate && resolvedTemplateSlug) {
+          setTemplate(null);
+          setNotFound(true);
+          return;
+        }
         const nextTemplate = normalizeRuntimeTemplate(runtimeTemplate ?? FALLBACK_TEMPLATE);
         setTemplate(nextTemplate);
         setData(current => {
@@ -470,7 +500,15 @@ export function AssessmentWizard() {
           return next;
         });
       })
-      .catch(() => setTemplate(FALLBACK_TEMPLATE))
+      .catch(() => {
+        if (!mounted) return;
+        if (resolvedTemplateSlug) {
+          setTemplate(null);
+          setNotFound(true);
+          return;
+        }
+        setTemplate(FALLBACK_TEMPLATE);
+      })
       .finally(() => {
         if (mounted) setLoading(false);
       });
@@ -478,7 +516,7 @@ export function AssessmentWizard() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [resolvedTemplateSlug]);
 
   const sections = useMemo(() => {
     const includedItems = (template?.items ?? []).filter(item => item.is_included);
@@ -899,6 +937,8 @@ export function AssessmentWizard() {
       </div>
     );
   }
+
+  if (notFound) return <AssessmentNotFound />;
 
   return (
     <div className="min-h-[100dvh] w-full overflow-x-hidden px-4 py-8 sm:px-6 sm:py-10">

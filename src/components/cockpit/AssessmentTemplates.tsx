@@ -34,7 +34,7 @@ const EMPTY_QUESTION = {
   question_type: 'long_text' as AssessmentQuestionType,
   scoring_dimension: '',
 };
-const EMPTY_TEMPLATE = { name: '', description: '', duplicateFromTemplateId: '' };
+const EMPTY_TEMPLATE = { name: '', slug: '', description: '', duplicateFromTemplateId: '' };
 
 function normalizeKey(value: string): string {
   return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
@@ -78,6 +78,7 @@ export function AssessmentTemplates() {
   const [templates, setTemplates] = useState<CreatorAssessmentRuntimeTemplate[]>([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState('');
   const [templateName, setTemplateName] = useState('');
+  const [templateSlug, setTemplateSlug] = useState('');
   const [templateDescription, setTemplateDescription] = useState('');
   const [draftItems, setDraftItems] = useState<DraftItem[]>([]);
   const [questionForm, setQuestionForm] = useState(EMPTY_QUESTION);
@@ -149,6 +150,7 @@ export function AssessmentTemplates() {
     if (!selectedTemplate) return '';
     return JSON.stringify({
       name: selectedTemplate.name,
+      slug: selectedTemplate.slug,
       description: selectedTemplate.description ?? '',
       items: draftItemsFor(selectedTemplate, questions).map(item => ({
         id: item.id,
@@ -164,6 +166,7 @@ export function AssessmentTemplates() {
 
   const currentState = useMemo(() => JSON.stringify({
     name: templateName,
+    slug: templateSlug,
     description: templateDescription,
     items: draftItems.map(item => ({
       id: item.id,
@@ -174,7 +177,7 @@ export function AssessmentTemplates() {
       is_included: item.is_included,
       sort_order: item.sort_order,
     })),
-  }), [templateName, templateDescription, draftItems]);
+  }), [templateName, templateSlug, templateDescription, draftItems]);
 
   const isDirty = Boolean(selectedTemplate) && initialState !== currentState;
   const saveDisabledReason = !selectedTemplate
@@ -217,11 +220,13 @@ export function AssessmentTemplates() {
   useEffect(() => {
     if (!selectedTemplate) {
       setTemplateName('');
+      setTemplateSlug('');
       setTemplateDescription('');
       setDraftItems([]);
       return;
     }
     setTemplateName(selectedTemplate.name);
+    setTemplateSlug(selectedTemplate.slug);
     setTemplateDescription(selectedTemplate.description ?? '');
     setDraftItems(draftItemsFor(selectedTemplate, questions));
   }, [selectedTemplateId, templates, questions]);
@@ -251,6 +256,7 @@ export function AssessmentTemplates() {
     try {
       await updateAssessmentTemplate(selectedTemplate.id, {
         name: templateName,
+        slug: templateSlug,
         description: templateDescription || null,
       });
       await saveTemplateItems(
@@ -425,6 +431,7 @@ export function AssessmentTemplates() {
     try {
       const template = await createAssessmentTemplate({
         name: templateForm.name,
+        slug: templateForm.slug || null,
         description: templateForm.description || null,
         duplicateFromTemplateId: templateForm.duplicateFromTemplateId || null,
       });
@@ -463,6 +470,7 @@ export function AssessmentTemplates() {
       if (isDirty) {
         await updateAssessmentTemplate(selectedTemplate.id, {
           name: templateName,
+          slug: templateSlug,
           description: templateDescription || null,
         });
         await saveTemplateItems(
@@ -574,10 +582,12 @@ export function AssessmentTemplates() {
               <p className="p-6 text-sm text-gray-500">No templates yet.</p>
             ) : (
               <div className="space-y-5 p-4">
-                <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_1.5fr]">
-                  <input value={templateName} onChange={e => setTemplateName(e.target.value)} className="rounded-lg border border-gray-700 bg-surface-2 px-3 py-2 text-sm text-gray-100" />
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_1fr_1.5fr]">
+                  <input value={templateName} onChange={e => setTemplateName(e.target.value)} placeholder="Template name" className="rounded-lg border border-gray-700 bg-surface-2 px-3 py-2 text-sm text-gray-100" />
+                  <input value={templateSlug} onChange={e => setTemplateSlug(normalizeKey(e.target.value).replace(/_/g, '-'))} placeholder="URL slug" className="rounded-lg border border-gray-700 bg-surface-2 px-3 py-2 text-sm text-gray-100" />
                   <input value={templateDescription} onChange={e => setTemplateDescription(e.target.value)} placeholder="Description" className="rounded-lg border border-gray-700 bg-surface-2 px-3 py-2 text-sm text-gray-100" />
                 </div>
+                <p className="text-xs text-gray-500">Public URL: /a/{templateSlug || selectedTemplate.slug}</p>
 
                 <div className="flex flex-wrap gap-2">
                   <span className={`rounded-full px-3 py-1 text-xs font-semibold ${selectedTemplate.is_active ? 'bg-success/10 text-success' : 'bg-warn/10 text-warn'}`}>{selectedTemplate.is_active ? 'Active' : 'Archived'}</span>
@@ -676,8 +686,9 @@ export function AssessmentTemplates() {
               <h2 className="font-semibold text-gray-100">Create New Template</h2>
               <p className="text-xs text-gray-500">New templates start archived/non-default. Restore them when ready, then set default after at least one active question is included.</p>
             </div>
-            <form onSubmit={createTemplate} className="grid grid-cols-1 gap-3 p-4 md:grid-cols-[1fr_1fr_220px_auto]">
+            <form onSubmit={createTemplate} className="grid grid-cols-1 gap-3 p-4 md:grid-cols-[1fr_1fr_1fr_220px_auto]">
               <input value={templateForm.name} onChange={e => setTemplateForm(current => ({ ...current, name: e.target.value }))} placeholder="Template name" required className="rounded-lg border border-gray-700 bg-surface-2 px-3 py-2 text-sm text-gray-100" />
+              <input value={templateForm.slug} onChange={e => setTemplateForm(current => ({ ...current, slug: normalizeKey(e.target.value).replace(/_/g, '-') }))} placeholder="URL slug" className="rounded-lg border border-gray-700 bg-surface-2 px-3 py-2 text-sm text-gray-100" />
               <input value={templateForm.description} onChange={e => setTemplateForm(current => ({ ...current, description: e.target.value }))} placeholder="Description" className="rounded-lg border border-gray-700 bg-surface-2 px-3 py-2 text-sm text-gray-100" />
               <select value={templateForm.duplicateFromTemplateId} onChange={e => setTemplateForm(current => ({ ...current, duplicateFromTemplateId: e.target.value }))} className="rounded-lg border border-gray-700 bg-surface-2 px-3 py-2 text-sm text-gray-100">
                 <option value="">Start blank</option>

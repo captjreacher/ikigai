@@ -133,8 +133,10 @@ export interface CreatorQuestion {
 
 export interface CreatorAssessmentTemplate {
   id: string;
+  slug: string;
   name: string;
   description: string | null;
+  is_public: boolean;
   is_default: boolean;
   is_active: boolean;
   created_at: string;
@@ -181,10 +183,15 @@ export interface CreatorAssessmentRuntimeTemplate extends CreatorAssessmentTempl
 export interface CreatorAssessment {
   id: string;
   creator_profile_id: string;
+  template_id: string | null;
+  template_slug: string | null;
   created_at: string;
   responses: AssessmentResponses;
+  answers: AssessmentResponses | null;
+  respondent: Record<string, unknown> | null;
   assessment_snapshot: {
     template_id: string;
+    template_slug: string;
     template_name: string;
     question_snapshot: CreatorAssessmentQuestion[];
   } | null;

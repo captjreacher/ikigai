@@ -66,11 +66,21 @@ export default function App() {
     return <AuthCallback />;
   }
 
+  const assessmentMatch = window.location.pathname.match(/^\/a\/([^/?#]+)\/?$/);
+  if (assessmentMatch) {
+    return (
+      <HashRouter>
+        <AssessmentWizard templateSlug={decodeURIComponent(assessmentMatch[1])} />
+      </HashRouter>
+    );
+  }
+
   return (
     <HashRouter>
       <Routes>
         {/* Public */}
         <Route path="/" element={<AssessmentWizard />} />
+        <Route path="/a/:templateSlug" element={<AssessmentWizard />} />
         <Route path="/report/:slug" element={<ReportPage />} />
 
         {/* Cockpit (authenticated) */}
