@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { HashRouter, Routes, Route } from 'react-router-dom';
+import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AssessmentWizard } from './components/wizard/AssessmentWizard';
 import { ReportPage } from './components/report/ReportPage';
 import { CockpitLayout } from './components/cockpit/CockpitLayout';
@@ -55,7 +55,7 @@ function AuthCallback() {
   }, []);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-950">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="animate-pulse text-gray-500">Signing you in...</div>
     </div>
   );
@@ -78,8 +78,7 @@ export default function App() {
   return (
     <HashRouter>
       <Routes>
-        {/* Public */}
-        <Route path="/" element={<AssessmentWizard />} />
+        <Route path="/" element={<Navigate to="/cockpit" replace />} />
         <Route path="/a/:templateSlug" element={<AssessmentWizard />} />
         <Route path="/report/:slug" element={<ReportPage />} />
 
@@ -90,7 +89,7 @@ export default function App() {
           <Route path="creators/:profileId" element={<CreatorProfileView />} />
           <Route path="settings/assessment-templates" element={<AssessmentTemplates />} />
         </Route>
-        <Route path="*" element={<AssessmentWizard />} />
+        <Route path="*" element={<Navigate to="/cockpit" replace />} />
       </Routes>
     </HashRouter>
   );

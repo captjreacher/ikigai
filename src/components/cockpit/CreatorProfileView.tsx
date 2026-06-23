@@ -73,7 +73,7 @@ function AgencyQualificationPanel({ report }: { report: CreatorReport | undefine
 
   if (!scores && !recommendation) {
     return (
-      <div className="bg-surface border border-gray-800 rounded-xl p-5">
+      <div className="bg-surface border border-gray-200 rounded-xl p-5">
         <h2 className="font-display font-semibold text-lg mb-2">Agency Qualification</h2>
         <p className="text-sm text-gray-600">No internal agency qualification data stored for this report yet.</p>
       </div>
@@ -113,15 +113,15 @@ function AgencyQualificationPanel({ report }: { report: CreatorReport | undefine
         <div className="mt-5 space-y-4">
           <div className="rounded-lg bg-surface-2 p-3">
             <div className="text-xs font-semibold uppercase tracking-wide text-accent">Recommended Next Action</div>
-            <p className="mt-1 text-sm text-gray-300">{recommendation.recommended_next_action}</p>
+            <p className="mt-1 text-sm text-gray-700">{recommendation.recommended_next_action}</p>
           </div>
-          <p className="text-sm text-gray-400">{recommendation.management_fit_summary}</p>
+          <p className="text-sm text-gray-600">{recommendation.management_fit_summary}</p>
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
             <div className="rounded-lg border border-pink/20 bg-pink/5 p-3">
               <div className="text-xs font-semibold uppercase tracking-wide text-pink">Risk Notes</div>
               <ul className="mt-2 space-y-1.5">
                 {recommendation.risk_notes.map(note => (
-                  <li key={note} className="text-xs text-gray-300">{note}</li>
+                  <li key={note} className="text-xs text-gray-700">{note}</li>
                 ))}
               </ul>
             </div>
@@ -129,7 +129,7 @@ function AgencyQualificationPanel({ report }: { report: CreatorReport | undefine
               <div className="text-xs font-semibold uppercase tracking-wide text-success">Opportunity Notes</div>
               <ul className="mt-2 space-y-1.5">
                 {recommendation.opportunity_notes.map(note => (
-                  <li key={note} className="text-xs text-gray-300">{note}</li>
+                  <li key={note} className="text-xs text-gray-700">{note}</li>
                 ))}
               </ul>
             </div>
@@ -237,14 +237,14 @@ export function CreatorProfileView() {
     <div className="space-y-8">
       {/* Header */}
       <div>
-        <button onClick={() => navigate('/cockpit/creators')} className="text-xs text-gray-500 hover:text-gray-300 mb-2 inline-block">← Back to pipeline</button>
+        <button onClick={() => navigate('/cockpit/creators')} className="text-xs text-gray-500 hover:text-gray-700 mb-2 inline-block">← Back to pipeline</button>
         <div className="flex items-start justify-between flex-wrap gap-4">
           <div>
             <h1 className="font-display text-2xl font-bold">{profile.full_name}</h1>
             <p className="text-gray-500 text-sm">{profile.email} · {profile.country}</p>
           </div>
           <div className="flex items-center gap-2">
-            <span className="px-3 py-1 rounded-full text-xs font-semibold bg-surface-3 text-gray-300 capitalize">
+            <span className="px-3 py-1 rounded-full text-xs font-semibold bg-surface-3 text-gray-700 capitalize">
               {profile.status}
             </span>
             <span className="px-3 py-1 rounded-full text-xs font-semibold bg-accent/20 text-accent">
@@ -258,7 +258,7 @@ export function CreatorProfileView() {
         {/* Left: Details */}
         <div className="lg:col-span-2 space-y-6">
           {/* Scores */}
-          <div className="bg-surface border border-gray-800 rounded-xl p-5">
+          <div className="bg-surface border border-gray-200 rounded-xl p-5">
             <h2 className="font-display font-semibold text-lg mb-4">Scores</h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
               {scoreCards.map(([label, score]) => (
@@ -273,7 +273,7 @@ export function CreatorProfileView() {
           <AgencyQualificationPanel report={latestReport} />
 
           {/* Creator DNA */}
-          <div className="bg-surface border border-gray-800 rounded-xl p-5">
+          <div className="bg-surface border border-gray-200 rounded-xl p-5">
             <div className="flex items-center justify-between gap-3 mb-4">
               <h2 className="font-display font-semibold text-lg">Creator DNA</h2>
               {latestDna && (
@@ -286,18 +286,18 @@ export function CreatorProfileView() {
               <p className="text-sm text-gray-600">No DNA profile generated yet.</p>
             ) : (
               <div className="space-y-5">
-                <p className="text-sm text-gray-300">{latestDna.summary}</p>
+                <p className="text-sm text-gray-700">{latestDna.summary}</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="bg-surface-2 rounded-lg p-3">
                     <div className="text-xs text-gray-500 mb-1">DNA</div>
-                    <div className="text-sm font-semibold text-gray-100">{latestDna.creator_dna_primary}</div>
+                    <div className="text-sm font-semibold text-gray-900">{latestDna.creator_dna_primary}</div>
                     <div className="text-xs text-gray-500 mt-1">
                       Secondary: {latestDna.creator_dna_secondary} · {latestDna.confidence}% confidence
                     </div>
                   </div>
                   <div className="bg-surface-2 rounded-lg p-3">
                     <div className="text-xs text-gray-500 mb-1">Archetype</div>
-                    <div className="text-sm font-semibold text-gray-100">{latestDna.fantasy_archetype}</div>
+                    <div className="text-sm font-semibold text-gray-900">{latestDna.fantasy_archetype}</div>
                     <div className="text-xs text-gray-500 mt-1">{latestDna.archetype_confidence}% confidence</div>
                   </div>
                   <div className="bg-surface-2 rounded-lg p-3">
@@ -314,17 +314,17 @@ export function CreatorProfileView() {
                   </div>
                   <div className="bg-surface-2 rounded-lg p-3">
                     <div className="text-xs text-gray-500 mb-1">Monetisation Readiness</div>
-                    <div className="text-sm font-semibold text-gray-100">{latestDna.monetisation_readiness}</div>
+                    <div className="text-sm font-semibold text-gray-900">{latestDna.monetisation_readiness}</div>
                   </div>
                   <div className="bg-surface-2 rounded-lg p-3">
                     <div className="text-xs text-gray-500 mb-1">Agency Opportunity</div>
-                    <div className="text-sm font-semibold text-gray-100">{latestDna.agency_opportunity_score}/100</div>
+                    <div className="text-sm font-semibold text-gray-900">{latestDna.agency_opportunity_score}/100</div>
                   </div>
                   <div className="bg-surface-2 rounded-lg p-3">
                     <div className="text-xs text-gray-500 mb-2">Growth Constraints</div>
                     <div className="flex flex-wrap gap-1.5">
                       {latestDna.growth_constraints.map(constraint => (
-                        <span key={constraint} className="px-2 py-1 rounded-full bg-surface-3 text-xs text-gray-300">
+                        <span key={constraint} className="px-2 py-1 rounded-full bg-surface-3 text-xs text-gray-700">
                           {constraint}
                         </span>
                       ))}
@@ -336,7 +336,7 @@ export function CreatorProfileView() {
                     <div className="text-xs font-semibold text-warn mb-2">Inconsistency Flags</div>
                     <ul className="space-y-1">
                       {latestDna.authenticity_flags.map(flag => (
-                        <li key={flag} className="text-xs text-gray-300">{flag}</li>
+                        <li key={flag} className="text-xs text-gray-700">{flag}</li>
                       ))}
                     </ul>
                   </div>
@@ -347,11 +347,11 @@ export function CreatorProfileView() {
 
           {/* Top Verticals */}
           {profile.top_vertical_1 && (
-            <div className="bg-surface border border-gray-800 rounded-xl p-5">
+            <div className="bg-surface border border-gray-200 rounded-xl p-5">
               <h2 className="font-display font-semibold text-lg mb-3">Top Content Verticals</h2>
               <div className="flex flex-wrap gap-2">
                 {[profile.top_vertical_1, profile.top_vertical_2, profile.top_vertical_3].filter(Boolean).map((v, i) => (
-                  <span key={v} className="px-3 py-1.5 rounded-full text-sm bg-surface-3 text-gray-300">
+                  <span key={v} className="px-3 py-1.5 rounded-full text-sm bg-surface-3 text-gray-700">
                     {i + 1}. {v}
                   </span>
                 ))}
@@ -360,7 +360,7 @@ export function CreatorProfileView() {
           )}
 
           {/* Reports */}
-          <div className="bg-surface border border-gray-800 rounded-xl p-5">
+          <div className="bg-surface border border-gray-200 rounded-xl p-5">
             <h2 className="font-display font-semibold text-lg mb-3">Reports ({reports.length})</h2>
             {reports.length === 0 ? (
               <p className="text-sm text-gray-600">No reports yet.</p>
@@ -375,7 +375,7 @@ export function CreatorProfileView() {
                     className="block bg-surface-2 rounded-lg px-4 py-3 hover:bg-surface-3 transition-colors"
                   >
                     <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-200">Report v{r.version}</span>
+                      <span className="text-sm text-gray-800">Report v{r.version}</span>
                       <span className="text-xs text-gray-500">{new Date(r.created_at!).toLocaleDateString()}</span>
                     </div>
                   </a>
@@ -385,15 +385,15 @@ export function CreatorProfileView() {
           </div>
 
           {/* Assessments */}
-          <div className="bg-surface border border-gray-800 rounded-xl p-5">
+          <div className="bg-surface border border-gray-200 rounded-xl p-5">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
               <h2 className="font-display font-semibold text-lg">Assessment History ({visibleAssessments.length})</h2>
               <div className="flex flex-wrap gap-2">
-                <select value={assessmentTemplateFilter} onChange={e => setAssessmentTemplateFilter(e.target.value)} className="rounded-lg border border-gray-700 bg-surface-2 px-3 py-2 text-xs text-gray-100">
+                <select value={assessmentTemplateFilter} onChange={e => setAssessmentTemplateFilter(e.target.value)} className="rounded-lg border border-gray-300 bg-surface-2 px-3 py-2 text-xs text-gray-900">
                   <option value="">All templates</option>
                   {templateFilterOptions.map(templateName => <option key={templateName} value={templateName}>{templateName}</option>)}
                 </select>
-                <select value={assessmentCreatorFilter} onChange={e => setAssessmentCreatorFilter(e.target.value)} className="rounded-lg border border-gray-700 bg-surface-2 px-3 py-2 text-xs text-gray-100">
+                <select value={assessmentCreatorFilter} onChange={e => setAssessmentCreatorFilter(e.target.value)} className="rounded-lg border border-gray-300 bg-surface-2 px-3 py-2 text-xs text-gray-900">
                   <option value="">All invite creators</option>
                   {creatorFilterOptions.map(creatorName => <option key={creatorName} value={creatorName}>{creatorName}</option>)}
                 </select>
@@ -404,9 +404,9 @@ export function CreatorProfileView() {
             ) : visibleAssessments.length === 0 ? (
               <p className="text-sm text-gray-600">No assessments match the current filters.</p>
             ) : (
-              <div className="overflow-x-auto rounded-lg border border-gray-800">
+              <div className="overflow-x-auto rounded-lg border border-gray-200">
                 <table className="w-full text-left text-sm">
-                  <thead className="border-b border-gray-800 text-xs uppercase tracking-wide text-gray-500">
+                  <thead className="border-b border-gray-200 text-xs uppercase tracking-wide text-gray-500">
                     <tr>
                       <th className="px-4 py-3 font-medium">Date</th>
                       <th className="px-4 py-3 font-medium">Score</th>
@@ -417,12 +417,12 @@ export function CreatorProfileView() {
                   </thead>
                   <tbody>
                     {visibleAssessments.map(a => (
-                      <tr key={a.id} className="border-b border-gray-800/60 bg-surface-2 last:border-0">
+                      <tr key={a.id} className="border-b border-gray-200/60 bg-surface-2 last:border-0">
                         <td className="px-4 py-3 text-xs text-gray-500">{new Date(a.created_at!).toLocaleDateString()}</td>
-                        <td className="px-4 py-3 text-gray-300">{a.agency_opportunity_score ?? '-'}</td>
-                        <td className="px-4 py-3 text-gray-300">{templateNameFor(a)}</td>
-                        <td className="px-4 py-3 text-gray-300">{a.invite_code ?? '-'}</td>
-                        <td className="px-4 py-3 text-gray-300">{a.creator_name ?? '-'}</td>
+                        <td className="px-4 py-3 text-gray-700">{a.agency_opportunity_score ?? '-'}</td>
+                        <td className="px-4 py-3 text-gray-700">{templateNameFor(a)}</td>
+                        <td className="px-4 py-3 text-gray-700">{a.invite_code ?? '-'}</td>
+                        <td className="px-4 py-3 text-gray-700">{a.creator_name ?? '-'}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -435,7 +435,7 @@ export function CreatorProfileView() {
         {/* Right: Actions */}
         <div className="space-y-6">
           {/* Status Transitions */}
-          <div className="bg-surface border border-gray-800 rounded-xl p-5">
+          <div className="bg-surface border border-gray-200 rounded-xl p-5">
             <h2 className="font-display font-semibold text-lg mb-3">Actions</h2>
             <div className="space-y-2">
               {(NEXT_STATUS[profile.status] ?? []).map(({ next, event, label }) => (
@@ -461,13 +461,13 @@ export function CreatorProfileView() {
           </div>
 
           {/* Notes */}
-          <div className="bg-surface border border-gray-800 rounded-xl p-5">
+          <div className="bg-surface border border-gray-200 rounded-xl p-5">
             <h2 className="font-display font-semibold text-lg mb-3">Agency Notes</h2>
             <div className="space-y-2 mb-4 max-h-64 overflow-y-auto">
               {notes.length === 0 && <p className="text-sm text-gray-600">No notes yet.</p>}
               {notes.map(n => (
                 <div key={n.id} className="bg-surface-2 rounded-lg px-3 py-2">
-                  <p className="text-sm text-gray-300">{n.note}</p>
+                  <p className="text-sm text-gray-700">{n.note}</p>
                   <p className="text-xs text-gray-600 mt-1">{new Date(n.created_at!).toLocaleString()}</p>
                 </div>
               ))}
@@ -479,12 +479,12 @@ export function CreatorProfileView() {
                 onChange={e => setNoteText(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleAddNote()}
                 placeholder="Add a note..."
-                className="flex-1 bg-surface-2 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:border-accent"
+                className="flex-1 bg-surface-2 border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 placeholder-gray-500 focus:outline-none focus:border-accent"
               />
               <button
                 onClick={handleAddNote}
                 disabled={!noteText.trim()}
-                className="px-3 py-2 rounded-lg bg-accent text-gray-950 text-sm font-semibold disabled:opacity-40"
+                className="px-3 py-2 rounded-lg bg-accent text-white text-sm font-semibold disabled:opacity-40"
               >
                 Add
               </button>
@@ -492,7 +492,7 @@ export function CreatorProfileView() {
           </div>
 
           {/* Timeline */}
-          <div className="bg-surface border border-gray-800 rounded-xl p-5">
+          <div className="bg-surface border border-gray-200 rounded-xl p-5">
             <h2 className="font-display font-semibold text-lg mb-3">Timeline</h2>
             <div className="space-y-3">
               {events.length === 0 && <p className="text-sm text-gray-600">No events yet.</p>}
@@ -500,7 +500,7 @@ export function CreatorProfileView() {
                 <div key={e.id} className="flex gap-3">
                   <div className="w-1.5 h-1.5 rounded-full bg-accent mt-2 shrink-0" />
                   <div>
-                    <p className="text-xs text-gray-400 capitalize">{e.event_type.replace(/_/g, ' ')}</p>
+                    <p className="text-xs text-gray-600 capitalize">{e.event_type.replace(/_/g, ' ')}</p>
                     <p className="text-xs text-gray-600">{new Date(e.created_at!).toLocaleString()}</p>
                   </div>
                 </div>
@@ -512,3 +512,4 @@ export function CreatorProfileView() {
     </div>
   );
 }
+

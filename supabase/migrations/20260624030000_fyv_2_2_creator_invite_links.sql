@@ -20,6 +20,9 @@ CREATE INDEX IF NOT EXISTS idx_creator_assessment_links_template_id
 
 ALTER TABLE public.creator_assessment_links ENABLE ROW LEVEL SECURITY;
 
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.creator_assessment_links TO authenticated;
+GRANT SELECT ON public.creator_assessment_links TO anon;
+
 DROP POLICY IF EXISTS "Public can read active creator assessment links" ON public.creator_assessment_links;
 CREATE POLICY "Public can read active creator assessment links"
   ON public.creator_assessment_links FOR SELECT
@@ -112,16 +115,31 @@ BEGIN
     END IF;
   END IF;
 
-  IF p_invite_link_id IS NOT NULL OR p_invite_code IS NOT NULL THEN
-    SELECT *
-    INTO v_invite
-    FROM public.creator_assessment_links
-    WHERE (p_invite_link_id IS NULL OR id = p_invite_link_id)
-      AND (p_invite_code IS NULL OR invite_code = p_invite_code)
-      AND is_active = true
-      AND (expires_at IS NULL OR expires_at > now())
-      AND (v_template.id IS NULL OR template_id = v_template.id)
-    LIMIT 1;
+  IF p_invite_link_id IS NULL AND NULLIF(p_invite_code, '') IS NULL THEN
+    RAISE EXCEPTION 'Assessment invite is required'
+      USING ERRCODE = 'P0001';
+  END IF;
+
+  SELECT *
+  INTO v_invite
+  FROM public.creator_assessment_links
+  WHERE (p_invite_link_id IS NULL OR id = p_invite_link_id)
+    AND (NULLIF(p_invite_code, '') IS NULL OR invite_code = p_invite_code)
+    AND is_active = true
+    AND (expires_at IS NULL OR expires_at > now())
+    AND (v_template.id IS NULL OR template_id = v_template.id)
+  LIMIT 1;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Assessment invite is invalid or expired'
+      USING ERRCODE = 'P0001';
+  END IF;
+
+  IF NULLIF(v_invite.creator_email, '') IS NOT NULL
+    AND lower(v_invite.creator_email) <> lower(NULLIF(p_respondent->>'email', ''))
+  THEN
+    RAISE EXCEPTION 'Assessment invite email does not match'
+      USING ERRCODE = 'P0001';
   END IF;
 
   INSERT INTO public.creator_assessments (

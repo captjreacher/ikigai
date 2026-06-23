@@ -14,8 +14,8 @@ function ScoreBar({ label, score }: { label: string; score: number }) {
   return (
     <div className="space-y-1">
       <div className="flex justify-between text-xs">
-        <span className="text-gray-400">{label}</span>
-        <span className="font-semibold text-gray-200">{score}/100</span>
+        <span className="text-gray-600">{label}</span>
+        <span className="font-semibold text-gray-800">{score}/100</span>
       </div>
       <div className="h-2 bg-surface-3 rounded-full overflow-hidden">
         <div className={`h-full ${color} rounded-full transition-all`} style={{ width: `${score}%` }} />
@@ -26,7 +26,7 @@ function ScoreBar({ label, score }: { label: string; score: number }) {
 
 function ScoreCard({ title, scores }: { title: string; scores: Record<string, number> }) {
   return (
-    <div className="bg-surface border border-gray-800 rounded-xl p-5">
+    <div className="bg-surface border border-gray-200 rounded-xl p-5">
       <h3 className="font-display font-semibold text-lg mb-4">{title}</h3>
       <div className="space-y-3">
         {Object.entries(scores).map(([k, v]) => (
@@ -67,7 +67,7 @@ export function ReportPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-950">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="animate-pulse text-gray-500">Loading report...</div>
       </div>
     );
@@ -75,7 +75,7 @@ export function ReportPage() {
 
   if (!report) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-950 p-4">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-4">
         <h1 className="font-display text-2xl font-bold mb-4">Report Not Found</h1>
         <p className="text-gray-500 mb-6">This report link may have expired or been moved.</p>
         <Link to="/" className="text-accent hover:underline text-sm">← Take the assessment</Link>
@@ -205,15 +205,15 @@ export function ReportPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-950">
+    <div className="min-h-screen bg-gray-50">
       {/* Hero */}
-      <div className="border-b border-gray-800 bg-surface/50">
+      <div className="border-b border-gray-200 bg-surface/50">
         <div className="max-w-4xl mx-auto px-6 py-12">
-          <Link to="/" className="text-xs text-gray-500 hover:text-gray-300 mb-4 inline-block">← Back to assessment</Link>
+          <Link to="/" className="text-xs text-gray-500 hover:text-gray-700 mb-4 inline-block">← Back to assessment</Link>
           <div className="flex items-start justify-between flex-wrap gap-4">
             <div>
               <h1 className="font-display text-3xl font-bold mb-2">{d.archetype}</h1>
-              <p className="text-gray-400 max-w-lg">{d.archetype_description}</p>
+              <p className="text-gray-600 max-w-lg">{d.archetype_description}</p>
             </div>
             <ConfidenceBadge confidence={d.result_confidence ?? 'Moderate'} />
           </div>
@@ -221,20 +221,30 @@ export function ReportPage() {
       </div>
 
       <div className="max-w-4xl mx-auto px-6 py-10 space-y-10">
+        <section className="space-y-4">
+          <h2 className="font-display text-2xl font-bold text-gray-900">Your Find Your Vertical Report</h2>
+          <div className="space-y-3 text-sm leading-6 text-gray-600">
+            <p>This report is designed to help you understand where your greatest creator opportunities exist today.</p>
+            <p>The recommendations are based on your responses, creator profile, content preferences, commercial goals, and growth readiness.</p>
+            <p>Use this report as a starting point—not a final destination. The most successful creators continuously refine their positioning, content strategy, and audience focus over time.</p>
+            <p>Review your results below and pay particular attention to the recommended actions and opportunities with the highest potential impact.</p>
+          </div>
+        </section>
+
         {/* Scores */}
         <ScoreCard title="Creator Signals" scores={publicScores} />
 
         {d.why_this_result && (
           <section>
             <h2 className="font-display text-xl font-semibold mb-4">Why This Result?</h2>
-            <div className="bg-surface border border-gray-800 rounded-xl p-5 space-y-5">
-              <p className="text-sm text-gray-300 leading-relaxed">{d.why_this_result.summary}</p>
+            <div className="bg-surface border border-gray-200 rounded-xl p-5 space-y-5">
+              <p className="text-sm text-gray-700 leading-relaxed">{d.why_this_result.summary}</p>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                 <div>
                   <h3 className="text-xs font-semibold uppercase tracking-wide text-accent mb-2">Behavioural Signals</h3>
                   <ul className="space-y-1.5">
                     {(d.why_this_result.strongest_behavioural_signals ?? d.why_this_result.top_signals ?? []).map(signal => (
-                      <li key={signal} className="text-sm text-gray-400">{signal}</li>
+                      <li key={signal} className="text-sm text-gray-600">{signal}</li>
                     ))}
                   </ul>
                 </div>
@@ -242,7 +252,7 @@ export function ReportPage() {
                   <h3 className="text-xs font-semibold uppercase tracking-wide text-accent mb-2">Creator Strengths</h3>
                   <ul className="space-y-1.5">
                     {(d.why_this_result.strongest_creator_strengths ?? d.why_this_result.strongest_answers ?? []).map(answer => (
-                      <li key={answer} className="text-sm text-gray-400">{answer}</li>
+                      <li key={answer} className="text-sm text-gray-600">{answer}</li>
                     ))}
                   </ul>
                 </div>
@@ -250,7 +260,7 @@ export function ReportPage() {
                   <h3 className="text-xs font-semibold uppercase tracking-wide text-accent mb-2">Content Signals</h3>
                   <ul className="space-y-1.5">
                     {(d.why_this_result.strongest_content_opportunity_signals ?? d.why_this_result.key_differentiators ?? []).map(item => (
-                      <li key={item} className="text-sm text-gray-400">{item}</li>
+                      <li key={item} className="text-sm text-gray-600">{item}</li>
                     ))}
                   </ul>
                 </div>
@@ -261,17 +271,17 @@ export function ReportPage() {
 
         {/* Archetype Deep Dive */}
         <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-surface border border-green-900/30 rounded-xl p-5">
+          <div className="bg-surface border border-success/30 rounded-xl p-5">
             <h3 className="font-semibold text-success mb-3 text-sm uppercase tracking-wide">Strengths</h3>
-            <ul className="space-y-2">{d.archetype_strengths.map(s => <li key={s} className="text-sm text-gray-300 flex gap-2"><span className="text-success">+</span>{s}</li>)}</ul>
+            <ul className="space-y-2">{d.archetype_strengths.map(s => <li key={s} className="text-sm text-gray-700 flex gap-2"><span className="text-success">+</span>{s}</li>)}</ul>
           </div>
           <div className="bg-surface border border-pink/20 rounded-xl p-5">
             <h3 className="font-semibold text-pink mb-3 text-sm uppercase tracking-wide">Risks</h3>
-            <ul className="space-y-2">{d.archetype_risks.map(s => <li key={s} className="text-sm text-gray-300 flex gap-2"><span className="text-pink">!</span>{s}</li>)}</ul>
+            <ul className="space-y-2">{d.archetype_risks.map(s => <li key={s} className="text-sm text-gray-700 flex gap-2"><span className="text-pink">!</span>{s}</li>)}</ul>
           </div>
           <div className="bg-surface border border-accent/20 rounded-xl p-5">
             <h3 className="font-semibold text-accent mb-3 text-sm uppercase tracking-wide">Growth</h3>
-            <ul className="space-y-2">{d.archetype_growth.map(s => <li key={s} className="text-sm text-gray-300 flex gap-2"><span className="text-accent">→</span>{s}</li>)}</ul>
+            <ul className="space-y-2">{d.archetype_growth.map(s => <li key={s} className="text-sm text-gray-700 flex gap-2"><span className="text-accent">→</span>{s}</li>)}</ul>
           </div>
         </section>
 
@@ -281,10 +291,10 @@ export function ReportPage() {
           <p className="text-sm text-gray-500 mb-4">These are recommended directions to explore, not a fixed content plan.</p>
           <div className="space-y-3">
             {d.top_verticals.map((v, i) => (
-              <div key={v.name} className="bg-surface border border-gray-800 rounded-xl p-5 flex gap-4">
+              <div key={v.name} className="bg-surface border border-gray-200 rounded-xl p-5 flex gap-4">
                 <span className="font-display text-3xl text-accent shrink-0">0{i + 1}</span>
                 <div>
-                  <h3 className="font-semibold text-gray-100">{v.name}</h3>
+                  <h3 className="font-semibold text-gray-900">{v.name}</h3>
                   <p className="text-sm text-gray-500 mt-1">{v.rationale}</p>
                 </div>
               </div>
@@ -296,23 +306,23 @@ export function ReportPage() {
         <section>
           <h2 className="font-display text-xl font-semibold mb-4">Monetisation Opportunity</h2>
           <div className="bg-surface border border-accent/20 rounded-xl p-5">
-            <p className="text-sm text-gray-300 leading-relaxed">{d.pricing_strategy}</p>
+            <p className="text-sm text-gray-700 leading-relaxed">{d.pricing_strategy}</p>
           </div>
         </section>
 
         {/* Winning 10 */}
         <section>
           <h2 className="font-display text-xl font-semibold mb-4">Content Testing Opportunity</h2>
-          <div className="bg-surface border border-gray-800 rounded-xl p-5">
-            <p className="text-sm text-gray-300 leading-relaxed">{d.winning_10_framework}</p>
+          <div className="bg-surface border border-gray-200 rounded-xl p-5">
+            <p className="text-sm text-gray-700 leading-relaxed">{d.winning_10_framework}</p>
           </div>
         </section>
 
         {/* Growth Strategy */}
         <section>
           <h2 className="font-display text-xl font-semibold mb-4">Growth Opportunity</h2>
-          <div className="bg-surface border border-gray-800 rounded-xl p-5">
-            <p className="text-sm text-gray-300 leading-relaxed">{d.growth_strategy}</p>
+          <div className="bg-surface border border-gray-200 rounded-xl p-5">
+            <p className="text-sm text-gray-700 leading-relaxed">{d.growth_strategy}</p>
           </div>
         </section>
 
@@ -321,7 +331,7 @@ export function ReportPage() {
           <h2 className="font-display text-xl font-semibold mb-4">Support Systems to Consider</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {d.tech_stack.map(t => (
-              <div key={t.tool} className="bg-surface border border-gray-800 rounded-xl p-4">
+              <div key={t.tool} className="bg-surface border border-gray-200 rounded-xl p-4">
                 <h3 className="font-semibold text-accent">{t.tool}</h3>
                 <p className="text-xs text-gray-500 mt-1">{t.purpose}</p>
               </div>
@@ -334,12 +344,12 @@ export function ReportPage() {
           <h2 className="font-display text-xl font-semibold mb-4">Opportunity Roadmap</h2>
           <div className="space-y-4">
             {d.day_90_plan.map((phase, i) => (
-              <div key={phase.phase} className="bg-surface border border-gray-800 rounded-xl p-5">
+              <div key={phase.phase} className="bg-surface border border-gray-200 rounded-xl p-5">
                 <h3 className="font-semibold text-accent mb-1">{phase.phase}</h3>
                 <p className="text-xs text-gray-500 mb-3">{phase.focus}</p>
                 <ul className="space-y-1.5">
                   {phase.actions.map(a => (
-                    <li key={a} className="text-sm text-gray-300 flex gap-2">
+                    <li key={a} className="text-sm text-gray-700 flex gap-2">
                       <span className="text-gray-600 shrink-0">{i + 1}.{phase.actions.indexOf(a) + 1}</span>
                       {a}
                     </li>
@@ -354,15 +364,15 @@ export function ReportPage() {
         <section>
           <h2 className="font-display text-xl font-semibold mb-4">What's Next?</h2>
           <div className="bg-surface border border-accent/20 rounded-xl p-5 space-y-4">
-            <p className="text-sm text-gray-300 leading-relaxed">
+            <p className="text-sm text-gray-700 leading-relaxed">
               Your assessment highlights several opportunities that could significantly improve positioning, audience growth, and monetisation.
             </p>
-            <p className="text-sm text-gray-300 leading-relaxed">
+            <p className="text-sm text-gray-700 leading-relaxed">
               A strategy discussion can help determine which opportunities are most relevant to your goals and whether creator management support could accelerate your progress.
             </p>
             <button
               onClick={() => startReportAction('discuss')}
-              className="inline-flex rounded-lg bg-accent px-5 py-2.5 text-sm font-semibold text-gray-950 hover:bg-accent-2"
+              className="inline-flex rounded-lg bg-accent px-5 py-2.5 text-sm font-semibold text-white hover:bg-accent-2"
             >
               Discuss My Results
             </button>
@@ -370,18 +380,18 @@ export function ReportPage() {
         </section>
 
         {/* Report Actions */}
-        <div className="border-t border-gray-800 py-6">
+        <div className="border-t border-gray-200 py-6">
           <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-center">
-            <button onClick={() => startReportAction('download')} className="rounded-lg border border-gray-700 px-4 py-2 text-sm font-medium text-gray-300 hover:border-gray-500">
+            <button onClick={() => startReportAction('download')} className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:border-gray-400">
               Download My Report
             </button>
-            <button onClick={() => startReportAction('email')} className="rounded-lg border border-gray-700 px-4 py-2 text-sm font-medium text-gray-300 hover:border-gray-500">
+            <button onClick={() => startReportAction('email')} className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:border-gray-400">
               Email me this report
             </button>
-            <button onClick={() => startReportAction('share')} className="rounded-lg border border-gray-700 px-4 py-2 text-sm font-medium text-gray-300 hover:border-gray-500">
+            <button onClick={() => startReportAction('share')} className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:border-gray-400">
               Share report
             </button>
-            <button onClick={() => startReportAction('discuss')} className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-gray-950 hover:bg-accent-2">
+            <button onClick={() => startReportAction('discuss')} className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white hover:bg-accent-2">
               Discuss My Results
             </button>
           </div>
@@ -391,10 +401,10 @@ export function ReportPage() {
       </div>
 
       {pendingAction && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-950/80 px-4">
-          <div className="w-full max-w-md rounded-xl border border-gray-800 bg-surface p-5 shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/80 px-4">
+          <div className="w-full max-w-md rounded-xl border border-gray-200 bg-surface p-5 shadow-2xl">
             <h2 className="font-display text-xl font-semibold">{AGENCY_PROMPT_COPY}</h2>
-            <p className="mt-3 text-sm leading-6 text-gray-400">
+            <p className="mt-3 text-sm leading-6 text-gray-600">
               A short MGRNZ strategy discussion can help translate your report into the most relevant next steps for your goals.
             </p>
             {actionError && <p className="mt-4 rounded-lg border border-pink/30 bg-pink/10 px-3 py-2 text-sm text-pink">{actionError}</p>}
@@ -402,14 +412,14 @@ export function ReportPage() {
               <button
                 onClick={requestDiscussionAndRedirect}
                 disabled={promptWorking}
-                className="rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-gray-950 hover:bg-accent-2 disabled:opacity-50"
+                className="rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-white hover:bg-accent-2 disabled:opacity-50"
               >
                 {promptWorking ? 'Opening calendar...' : "Yes, I'd like to discuss my results"}
               </button>
               <button
                 onClick={continueWithoutAgency}
                 disabled={promptWorking}
-                className="rounded-lg border border-gray-700 px-4 py-2.5 text-sm font-medium text-gray-300 hover:border-gray-500 disabled:opacity-50"
+                className="rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:border-gray-400 disabled:opacity-50"
               >
                 Not right now, continue
               </button>
@@ -561,3 +571,5 @@ function createReportPdfBlob(report: ReportData, publicScores: Record<string, nu
 
   return new Blob([pdf], { type: 'application/pdf' });
 }
+
+

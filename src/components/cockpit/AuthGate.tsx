@@ -1,4 +1,4 @@
-import { useState, useEffect, type ReactNode } from 'react';
+import { useState, useEffect, type FormEvent, type ReactNode } from 'react';
 import { useLocation } from 'react-router-dom';
 import { supabase, signInWithOtp } from '@/lib/supabase';
 import type { Session } from '@supabase/supabase-js';
@@ -47,7 +47,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleLogin = async (e: FormEvent) => {
     e.preventDefault();
     setSending(true);
     setMessage(null);
@@ -68,7 +68,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-950">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="animate-pulse text-gray-500">Loading...</div>
       </div>
     );
@@ -76,10 +76,11 @@ export function AuthGate({ children }: { children: ReactNode }) {
 
   if (!session) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-950 p-4">
-        <div className="w-full max-w-sm">
-          <h1 className="text-2xl font-display font-bold text-center mb-2">Creators Cockpit</h1>
-          <p className="text-gray-500 text-center mb-8 text-sm">Agency access - sign in with email</p>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+        <div className="w-full max-w-sm rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+          <p className="text-center text-xs font-semibold uppercase tracking-[0.18em] text-accent">Find Your Vertical</p>
+          <h1 className="mt-3 text-2xl font-display font-bold text-center text-gray-900">Creators Cockpit</h1>
+          <p className="text-gray-500 text-center mb-8 mt-2 text-sm">Agency access - sign in with email</p>
           <form onSubmit={handleLogin} className="space-y-4">
             <input
               type="email"
@@ -91,12 +92,12 @@ export function AuthGate({ children }: { children: ReactNode }) {
               }}
               placeholder="you@agency.com"
               required
-              className="w-full bg-surface-2 border border-gray-700 rounded-lg px-4 py-3 text-gray-100 placeholder-gray-500 focus:outline-none focus:border-accent transition-colors"
+              className="w-full bg-surface-2 border border-gray-300 rounded-lg px-4 py-3 text-gray-900 placeholder-gray-500 focus:outline-none focus:border-accent transition-colors"
             />
             <button
               type="submit"
               disabled={sending}
-              className="w-full bg-accent hover:bg-accent-2 text-gray-950 font-semibold rounded-lg px-4 py-3 transition-colors disabled:opacity-50"
+              className="w-full bg-accent hover:bg-accent-2 text-white font-semibold rounded-lg px-4 py-3 transition-colors disabled:opacity-50"
             >
               {sending ? 'Sending...' : messageKind === 'success' ? 'Send again' : 'Send magic link'}
             </button>
@@ -104,7 +105,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
           {message && (
             <p
               className={`text-sm text-center mt-4 ${
-                messageKind === 'error' ? 'text-red-300' : 'text-gray-400'
+                messageKind === 'error' ? 'text-red-700' : 'text-gray-600'
               }`}
               role={messageKind === 'error' ? 'alert' : 'status'}
             >
@@ -118,3 +119,5 @@ export function AuthGate({ children }: { children: ReactNode }) {
 
   return <>{children}</>;
 }
+
+

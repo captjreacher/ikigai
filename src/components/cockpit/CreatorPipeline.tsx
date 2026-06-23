@@ -4,14 +4,14 @@ import { getAllCreatorProfiles } from '@/lib/creators-api';
 import type { CreatorProfile } from '@/types/creator';
 
 const STATUS_COLORS: Record<string, string> = {
-  prospect: 'bg-gray-700/50 text-gray-400',
+  prospect: 'bg-gray-700/50 text-gray-600',
   assessed: 'bg-blue-900/30 text-blue-400',
   qualified: 'bg-accent/20 text-accent',
   interviewed: 'bg-purple-900/30 text-purple-400',
-  accepted: 'bg-green-900/30 text-success',
+  accepted: 'bg-success/10 text-success',
   onboarding: 'bg-warn/20 text-warn',
   active: 'bg-success/20 text-success',
-  paused: 'bg-gray-700/50 text-gray-400',
+  paused: 'bg-gray-700/50 text-gray-600',
   offboarded: 'bg-pink/20 text-pink',
 };
 
@@ -34,10 +34,10 @@ export function CreatorPipeline() {
         </div>
       </div>
 
-      <div className="bg-surface border border-gray-800 rounded-xl overflow-hidden">
+      <div className="bg-surface border border-gray-200 rounded-xl overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="border-b border-gray-800">
+            <thead className="border-b border-gray-200">
               <tr className="text-left text-gray-500 text-xs uppercase tracking-wide">
                 <th className="px-4 py-3 font-medium">Creator</th>
                 <th className="px-4 py-3 font-medium">Email</th>
@@ -51,23 +51,23 @@ export function CreatorPipeline() {
             </thead>
             <tbody>
               {profiles.map(p => (
-                <tr key={p.id} className="border-b border-gray-800/50 hover:bg-surface-2/50 transition-colors">
+                <tr key={p.id} className="border-b border-gray-200/50 hover:bg-surface-2/50 transition-colors">
                   <td className="px-4 py-3">
-                    <Link to={`/cockpit/creators/${p.id}`} className="text-gray-100 hover:text-accent font-medium">
+                    <Link to={`/cockpit/creators/${p.id}`} className="text-gray-900 hover:text-accent font-medium">
                       {p.full_name}
                     </Link>
                   </td>
-                  <td className="px-4 py-3 text-gray-400">{p.email ?? '—'}</td>
-                  <td className="px-4 py-3 text-gray-300">{p.archetype ?? '—'}</td>
+                  <td className="px-4 py-3 text-gray-600">{p.email ?? '—'}</td>
+                  <td className="px-4 py-3 text-gray-700">{p.archetype ?? '—'}</td>
                   <td className="px-4 py-3">
                     <span className={`font-semibold ${(p.agency_opportunity_score ?? 0) >= 60 ? 'text-success' : (p.agency_opportunity_score ?? 0) >= 40 ? 'text-warn' : 'text-pink'}`}>
                       {p.agency_opportunity_score ?? '—'}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-gray-400">{p.management_readiness ?? '—'}</td>
-                  <td className="px-4 py-3 text-gray-400 capitalize">{p.audience_strategy ?? '—'}</td>
+                  <td className="px-4 py-3 text-gray-600">{p.management_readiness ?? '—'}</td>
+                  <td className="px-4 py-3 text-gray-600 capitalize">{p.audience_strategy ?? '—'}</td>
                   <td className="px-4 py-3">
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[p.status] ?? 'bg-gray-700 text-gray-400'}`}>
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[p.status] ?? 'bg-gray-700 text-gray-600'}`}>
                       {p.status}
                     </span>
                   </td>
@@ -88,3 +88,5 @@ export function CreatorPipeline() {
     </div>
   );
 }
+
+

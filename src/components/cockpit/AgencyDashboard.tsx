@@ -5,9 +5,9 @@ import type { DashboardMetrics } from '@/lib/creators-api';
 
 function MetricCard({ label, value, subtitle }: { label: string; value: string | number; subtitle?: string }) {
   return (
-    <div className="bg-surface border border-gray-800 rounded-xl p-5">
+    <div className="bg-surface border border-gray-200 rounded-xl p-5">
       <div className="text-3xl font-bold font-display text-accent">{value}</div>
-      <div className="text-sm text-gray-400 mt-1">{label}</div>
+      <div className="text-sm text-gray-600 mt-1">{label}</div>
       {subtitle && <div className="text-xs text-gray-600 mt-1">{subtitle}</div>}
     </div>
   );
@@ -42,31 +42,31 @@ export function AgencyDashboard() {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Link
           to="/cockpit/creators"
-          className="bg-surface border border-gray-800 rounded-xl p-5 hover:border-accent/30 transition-colors group"
+          className="bg-surface border border-gray-200 rounded-xl p-5 hover:border-accent/30 transition-colors group"
         >
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="font-semibold text-gray-200 group-hover:text-accent transition-colors">Creator Pipeline</h3>
+              <h3 className="font-semibold text-gray-800 group-hover:text-accent transition-colors">Creator Pipeline</h3>
               <p className="text-sm text-gray-500 mt-1">View and manage all creator profiles</p>
             </div>
             <span className="text-2xl">→</span>
           </div>
         </Link>
-        <a
-          href="/#/"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="bg-surface border border-gray-800 rounded-xl p-5 hover:border-accent/30 transition-colors group"
+        <Link
+          to="/cockpit/settings/assessment-templates"
+          className="bg-surface border border-gray-200 rounded-xl p-5 hover:border-accent/30 transition-colors group"
         >
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="font-semibold text-gray-200 group-hover:text-accent transition-colors">Public Assessment Wizard</h3>
-              <p className="text-sm text-gray-500 mt-1">Open the creator-facing assessment tool</p>
+              <h3 className="font-semibold text-gray-800 group-hover:text-accent transition-colors">Assessment Templates</h3>
+              <p className="text-sm text-gray-500 mt-1">Manage templates and invite-only assessment links</p>
             </div>
             <span className="text-2xl">↗</span>
           </div>
-        </a>
+        </Link>
       </div>
     </div>
   );
 }
+
+

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import {
   getAssessmentInviteLink,
@@ -53,6 +53,9 @@ const SECTION_DESCRIPTIONS: Record<string, string> = {
   'Exploring Content Possibilities': "Let's explore the content styles, personas, and opportunities that may align with your strengths.",
   'Options for the Future': "Share where you'd like your creator journey to go and how success looks for you.",
 };
+const INVITE_ONLY_MODE = true;
+const INVALID_INVITE_MESSAGE = 'This assessment link is invalid or has expired. Please contact the person who sent it to you.';
+const EMAIL_MISMATCH_MESSAGE = 'This assessment link is assigned to a different email address. Please check the email address or contact us.';
 
 const FALLBACK_TEMPLATE: CreatorAssessmentRuntimeTemplate = {
   id: 'legacy-fallback',
@@ -460,14 +463,31 @@ function refFromLocation(routerSearch: string): string {
   return new URLSearchParams(hashSearch).get('ref') ?? '';
 }
 
+function normalizeEmailInput(value: string): string {
+  return value.trim().toLowerCase();
+}
+
 function AssessmentNotFound() {
   return (
     <div className="min-h-[100dvh] w-full px-4 py-10">
       <div className="mx-auto flex min-h-[70dvh] max-w-lg flex-col items-center justify-center text-center">
-        <h1 className="font-display text-3xl font-bold text-gray-100">Assessment not found</h1>
-        <p className="mt-3 text-sm leading-6 text-gray-400">
+        <h1 className="font-display text-3xl font-bold text-gray-900">Assessment not found</h1>
+        <p className="mt-3 text-sm leading-6 text-gray-600">
           This assessment link may have changed or is no longer active. Please check the URL or request a fresh link.
         </p>
+      </div>
+    </div>
+  );
+}
+
+function AssessmentAccessMessage({ message }: { message: string }) {
+  return (
+    <div className="min-h-[100dvh] w-full px-4 py-10">
+      <div className="mx-auto flex min-h-[70dvh] max-w-lg flex-col items-center justify-center text-center">
+        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+          <h1 className="font-display text-2xl font-bold text-gray-900">Assessment unavailable</h1>
+          <p className="mt-3 text-sm leading-6 text-gray-600">{message}</p>
+        </div>
       </div>
     </div>
   );
@@ -484,7 +504,13 @@ export function AssessmentWizard({ templateSlug }: { templateSlug?: string }) {
   const [inviteLink, setInviteLink] = useState<CreatorAssessmentInviteLink | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [inviteAccessError, setInviteAccessError] = useState('');
+  const [verifiedEmail, setVerifiedEmail] = useState('');
+  const [verificationEmail, setVerificationEmail] = useState('');
+  const [verificationError, setVerificationError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [submittedReportSlug, setSubmittedReportSlug] = useState('');
+  const [redirectCountdown, setRedirectCountdown] = useState(3);
   const [error, setError] = useState('');
   const navigate = useNavigate();
 
@@ -493,8 +519,18 @@ export function AssessmentWizard({ templateSlug }: { templateSlug?: string }) {
 
     setLoading(true);
     setNotFound(false);
+    setInviteAccessError('');
+    setInviteLink(null);
+    setVerifiedEmail('');
+    setVerificationEmail('');
+    setVerificationError('');
 
     const load = async () => {
+      if (INVITE_ONLY_MODE && !inviteRef) {
+        setInviteAccessError(INVALID_INVITE_MESSAGE);
+        return;
+      }
+
       const runtimeTemplate = resolvedTemplateSlug
         ? await getAssessmentTemplateBySlug(resolvedTemplateSlug)
         : await getDefaultAssessmentTemplate();
@@ -509,19 +545,25 @@ export function AssessmentWizard({ templateSlug }: { templateSlug?: string }) {
         const nextTemplate = normalizeRuntimeTemplate(runtimeTemplate ?? FALLBACK_TEMPLATE);
         setTemplate(nextTemplate);
 
-        if (inviteRef) {
-          try {
-            const invite = await getAssessmentInviteLink(inviteRef);
-            if (mounted && invite?.template_id === nextTemplate.id) {
-              setInviteLink(invite);
-            } else if (mounted) {
-              setInviteLink(null);
-            }
-          } catch {
-            if (mounted) setInviteLink(null);
-          }
-        } else {
+        if (!inviteRef) {
           setInviteLink(null);
+          return;
+        }
+
+        try {
+          const invite = await getAssessmentInviteLink(inviteRef);
+          if (!mounted) return;
+          if (invite?.template_id === nextTemplate.id) {
+            setInviteLink(invite);
+          } else {
+            setInviteLink(null);
+            setInviteAccessError(INVALID_INVITE_MESSAGE);
+          }
+        } catch {
+          if (mounted) {
+            setInviteLink(null);
+            setInviteAccessError(INVALID_INVITE_MESSAGE);
+          }
         }
 
         setData(current => {
@@ -555,6 +597,50 @@ export function AssessmentWizard({ templateSlug }: { templateSlug?: string }) {
       mounted = false;
     };
   }, [resolvedTemplateSlug, inviteRef]);
+
+  useEffect(() => {
+    if (!submittedReportSlug) return;
+
+    setRedirectCountdown(3);
+    const reportPath = `/report/${submittedReportSlug}`;
+    const countdownTimer = window.setInterval(() => {
+      setRedirectCountdown(current => Math.max(current - 1, 0));
+    }, 1000);
+    const redirectTimer = window.setTimeout(() => {
+      navigate(reportPath, { replace: true });
+    }, 3000);
+
+    return () => {
+      window.clearInterval(countdownTimer);
+      window.clearTimeout(redirectTimer);
+    };
+  }, [navigate, submittedReportSlug]);
+
+  const goToSubmittedReport = () => {
+    if (!submittedReportSlug) return;
+    navigate(`/report/${submittedReportSlug}`, { replace: true });
+  };
+
+  const verifyInviteEmail = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!inviteLink) return;
+
+    const enteredEmail = normalizeEmailInput(verificationEmail);
+    if (!enteredEmail) {
+      setVerificationError('Enter your email address to continue.');
+      return;
+    }
+
+    const invitedEmail = inviteLink.creator_email ? normalizeEmailInput(inviteLink.creator_email) : '';
+    if (invitedEmail && enteredEmail !== invitedEmail) {
+      setVerificationError(EMAIL_MISMATCH_MESSAGE);
+      return;
+    }
+
+    setVerificationError('');
+    setVerifiedEmail(enteredEmail);
+    setData(current => ({ ...current, email: enteredEmail }));
+  };
 
   const sections = useMemo(() => {
     const includedItems = (template?.items ?? []).filter(item => item.is_included);
@@ -658,7 +744,7 @@ export function AssessmentWizard({ templateSlug }: { templateSlug?: string }) {
         && textValue(data.onlyfans_handle)
         && textValue(data.city)
         && textValue(data.country)
-        && textValue(data.email)
+        && (verifiedEmail || textValue(data.email))
       );
     }
 
@@ -682,7 +768,7 @@ export function AssessmentWizard({ templateSlug }: { templateSlug?: string }) {
     && textValue(data.onlyfans_handle)
     && textValue(data.city)
     && textValue(data.country)
-    && textValue(data.email)
+    && (verifiedEmail || textValue(data.email))
   );
 
   const handleSubmit = async () => {
@@ -702,7 +788,7 @@ export function AssessmentWizard({ templateSlug }: { templateSlug?: string }) {
         model_name: textValue(data.model_name),
         city: textValue(data.city),
         country: textValue(data.country),
-        email: textValue(data.email).toLowerCase(),
+        email: normalizeEmailInput(verifiedEmail || textValue(data.email)),
         consent: !data.mailing_list_opt_out,
       };
 
@@ -722,7 +808,7 @@ export function AssessmentWizard({ templateSlug }: { templateSlug?: string }) {
           }
         : template;
       const result = await submitAssessment(sanitizedData, visibleTemplate, inviteLink);
-      navigate(`/report/${result.report.report_slug}`);
+      setSubmittedReportSlug(result.report.report_slug);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Something went wrong');
     } finally {
@@ -734,13 +820,13 @@ export function AssessmentWizard({ templateSlug }: { templateSlug?: string }) {
     <div className="mx-auto max-w-2xl space-y-6 animate-in">
       <div className="space-y-3">
         <h2 className="font-display text-xl font-semibold">Find Your Vertical – Modelling Creator Talent</h2>
-        <p className="text-sm leading-6 text-gray-400">
+        <p className="text-sm leading-6 text-gray-600">
           Find Your Vertical is designed to identify your strongest creator positioning, content opportunities, monetisation potential, and long-term growth paths.
         </p>
-        <p className="text-sm leading-6 text-gray-400">
+        <p className="text-sm leading-6 text-gray-600">
           Your responses help generate a personalised creator report and may be reviewed for creator management opportunities.
         </p>
-        <p className="text-sm leading-6 text-gray-400">
+        <p className="text-sm leading-6 text-gray-600">
           Your information is treated confidentially and used only for assessment and creator contact purposes.
         </p>
       </div>
@@ -751,49 +837,50 @@ export function AssessmentWizard({ templateSlug }: { templateSlug?: string }) {
           value={String(data.first_name ?? '')}
           onChange={e => update('first_name', e.target.value)}
           placeholder="First Name"
-          className="w-full bg-surface-2 border border-gray-700 rounded-lg px-4 py-3 text-gray-100 placeholder-gray-500 focus:outline-none focus:border-accent"
+          className="w-full bg-surface-2 border border-gray-300 rounded-lg px-4 py-3 text-gray-900 placeholder-gray-500 focus:outline-none focus:border-accent"
         />
         <input
           type="text"
           value={String(data.last_name ?? '')}
           onChange={e => update('last_name', e.target.value)}
           placeholder="Last Name"
-          className="w-full bg-surface-2 border border-gray-700 rounded-lg px-4 py-3 text-gray-100 placeholder-gray-500 focus:outline-none focus:border-accent"
+          className="w-full bg-surface-2 border border-gray-300 rounded-lg px-4 py-3 text-gray-900 placeholder-gray-500 focus:outline-none focus:border-accent"
         />
         <input
           type="text"
           value={String(data.onlyfans_handle ?? '')}
           onChange={e => update('onlyfans_handle', e.target.value)}
           placeholder="OnlyFans handle"
-          className="w-full bg-surface-2 border border-gray-700 rounded-lg px-4 py-3 text-gray-100 placeholder-gray-500 focus:outline-none focus:border-accent"
+          className="w-full bg-surface-2 border border-gray-300 rounded-lg px-4 py-3 text-gray-900 placeholder-gray-500 focus:outline-none focus:border-accent"
         />
         <input
           type="text"
           value={String(data.model_name ?? '')}
           onChange={e => update('model_name', e.target.value)}
           placeholder="Model name / stage name (optional)"
-          className="w-full bg-surface-2 border border-gray-700 rounded-lg px-4 py-3 text-gray-100 placeholder-gray-500 focus:outline-none focus:border-accent"
+          className="w-full bg-surface-2 border border-gray-300 rounded-lg px-4 py-3 text-gray-900 placeholder-gray-500 focus:outline-none focus:border-accent"
         />
         <input
           type="text"
           value={String(data.city ?? '')}
           onChange={e => update('city', e.target.value)}
           placeholder="City"
-          className="w-full bg-surface-2 border border-gray-700 rounded-lg px-4 py-3 text-gray-100 placeholder-gray-500 focus:outline-none focus:border-accent"
+          className="w-full bg-surface-2 border border-gray-300 rounded-lg px-4 py-3 text-gray-900 placeholder-gray-500 focus:outline-none focus:border-accent"
         />
         <input
           type="text"
           value={String(data.country ?? '')}
           onChange={e => update('country', e.target.value)}
           placeholder="Country"
-          className="w-full bg-surface-2 border border-gray-700 rounded-lg px-4 py-3 text-gray-100 placeholder-gray-500 focus:outline-none focus:border-accent"
+          className="w-full bg-surface-2 border border-gray-300 rounded-lg px-4 py-3 text-gray-900 placeholder-gray-500 focus:outline-none focus:border-accent"
         />
         <input
           type="email"
           value={String(data.email ?? '')}
           onChange={e => update('email', e.target.value)}
           placeholder="Email"
-          className="w-full bg-surface-2 border border-gray-700 rounded-lg px-4 py-3 text-gray-100 placeholder-gray-500 focus:outline-none focus:border-accent sm:col-span-2"
+          readOnly={Boolean(verifiedEmail)}
+          className="w-full bg-surface-2 border border-gray-300 rounded-lg px-4 py-3 text-gray-900 placeholder-gray-500 focus:outline-none focus:border-accent sm:col-span-2 read-only:bg-gray-100"
         />
       </div>
 
@@ -804,8 +891,46 @@ export function AssessmentWizard({ templateSlug }: { templateSlug?: string }) {
           onChange={e => update('mailing_list_opt_out', e.target.checked)}
           className="mt-1 accent-accent"
         />
-        <span className="text-sm text-gray-400">Opt out of mailing list updates</span>
+        <span className="text-sm text-gray-600">Opt out of mailing list updates</span>
       </label>
+    </div>
+  );
+
+  const renderEmailVerification = () => (
+    <div className="min-h-[100dvh] w-full px-4 py-10 sm:px-6">
+      <div className="mx-auto flex min-h-[calc(100dvh-5rem)] max-w-lg items-center">
+        <div className="w-full rounded-lg border border-gray-200 bg-white p-6 shadow-sm sm:p-8">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">Invite verification</p>
+          <h1 className="mt-3 font-display text-3xl font-bold text-gray-900">Find Your Vertical</h1>
+          <p className="mt-3 text-sm leading-6 text-gray-600">
+            Enter the email address this invite was sent to before starting your assessment.
+          </p>
+          <form onSubmit={verifyInviteEmail} className="mt-6 space-y-4">
+            <input
+              type="email"
+              value={verificationEmail}
+              onChange={event => {
+                setVerificationEmail(event.target.value);
+                setVerificationError('');
+              }}
+              placeholder="you@example.com"
+              required
+              className="w-full rounded-lg border border-gray-300 bg-surface-2 px-4 py-3 text-gray-900 placeholder-gray-500 focus:border-accent focus:outline-none"
+            />
+            {verificationError && (
+              <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                {verificationError}
+              </div>
+            )}
+            <button
+              type="submit"
+              className="w-full rounded-lg bg-accent px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-accent-2"
+            >
+              Continue to assessment
+            </button>
+          </form>
+        </div>
+      </div>
     </div>
   );
 
@@ -815,7 +940,7 @@ export function AssessmentWizard({ templateSlug }: { templateSlug?: string }) {
     const value = data[question.response_key];
     return (
       <div key={question.id}>
-        <label className="block text-sm font-medium mb-2 text-gray-300">
+        <label className="block text-sm font-medium mb-2 text-gray-700">
           {question.question_text}
         </label>
         {question.help_text && <p className="text-gray-500 text-xs mb-3">{question.help_text}</p>}
@@ -836,8 +961,8 @@ export function AssessmentWizard({ templateSlug }: { templateSlug?: string }) {
                     selected
                       ? 'bg-accent/20 border-accent text-accent'
                       : atLimit
-                        ? 'border-gray-800 text-gray-600 cursor-not-allowed'
-                        : 'border-gray-700 text-gray-400 hover:border-gray-500'
+                        ? 'border-gray-200 text-gray-600 cursor-not-allowed'
+                        : 'border-gray-300 text-gray-600 hover:border-gray-400'
                   }`}
                 >
                   {optionLabel(option)}
@@ -858,10 +983,10 @@ export function AssessmentWizard({ templateSlug }: { templateSlug?: string }) {
                   className={`p-5 rounded-xl border-2 transition-all text-left ${
                     value === optionKey
                       ? 'border-accent bg-accent/10'
-                      : 'border-gray-700 hover:border-gray-500'
+                      : 'border-gray-300 hover:border-gray-400'
                   }`}
                 >
-                  <div className="font-semibold text-gray-100">{optionLabel(option)}</div>
+                  <div className="font-semibold text-gray-900">{optionLabel(option)}</div>
                   {optionDescription(option) && (
                     <p className="text-xs text-gray-500 mt-1">{optionDescription(option)}</p>
                   )}
@@ -884,7 +1009,7 @@ export function AssessmentWizard({ templateSlug }: { templateSlug?: string }) {
                       ? question.section === 'Current Approach'
                         ? 'bg-pink/20 border-pink text-pink'
                         : 'bg-accent/20 border-accent text-accent'
-                      : 'border-gray-700 text-gray-400 hover:border-gray-500'
+                      : 'border-gray-300 text-gray-600 hover:border-gray-400'
                   }`}
                 >
                   {optionLabel(option)}
@@ -906,7 +1031,7 @@ export function AssessmentWizard({ templateSlug }: { templateSlug?: string }) {
                 className={`px-6 py-2 rounded-full text-sm font-medium border transition-all ${
                   value === option.value
                     ? 'bg-pink/20 border-pink text-pink'
-                    : 'border-gray-700 text-gray-400 hover:border-gray-500'
+                    : 'border-gray-300 text-gray-600 hover:border-gray-400'
                 }`}
               >
                 {option.label}
@@ -937,7 +1062,7 @@ export function AssessmentWizard({ templateSlug }: { templateSlug?: string }) {
             value={String(value ?? '')}
             onChange={e => update(question.response_key, e.target.value)}
             placeholder={String(question.config.placeholder ?? '')}
-            className="w-full max-w-lg bg-surface-2 border border-gray-700 rounded-lg px-4 py-3 text-gray-100 placeholder-gray-500 focus:outline-none focus:border-accent"
+            className="w-full max-w-lg bg-surface-2 border border-gray-300 rounded-lg px-4 py-3 text-gray-900 placeholder-gray-500 focus:outline-none focus:border-accent"
           />
         )}
 
@@ -947,26 +1072,78 @@ export function AssessmentWizard({ templateSlug }: { templateSlug?: string }) {
             onChange={e => update(question.response_key, e.target.value)}
             placeholder={String(question.config.placeholder ?? '')}
             rows={Number(question.config.rows ?? 3)}
-            className="w-full max-w-lg bg-surface-2 border border-gray-700 rounded-lg px-4 py-3 text-gray-100 placeholder-gray-500 focus:outline-none focus:border-accent resize-none"
+            className="w-full max-w-lg bg-surface-2 border border-gray-300 rounded-lg px-4 py-3 text-gray-900 placeholder-gray-500 focus:outline-none focus:border-accent resize-none"
           />
         )}
 
         {Boolean(question.config.notesKey) && (
           <div className="mt-3">
-            <label className="block text-sm font-medium mb-2 text-gray-300">
+            <label className="block text-sm font-medium mb-2 text-gray-700">
               {String(question.config.notesLabel ?? 'Notes')}
             </label>
             <textarea
               value={String(data[String(question.config.notesKey)] ?? '')}
               onChange={e => update(String(question.config.notesKey), e.target.value)}
               rows={3}
-              className="w-full max-w-lg bg-surface-2 border border-gray-700 rounded-lg px-4 py-3 text-gray-100 placeholder-gray-500 focus:outline-none focus:border-accent resize-none"
+              className="w-full max-w-lg bg-surface-2 border border-gray-300 rounded-lg px-4 py-3 text-gray-900 placeholder-gray-500 focus:outline-none focus:border-accent resize-none"
             />
           </div>
         )}
       </div>
     );
   };
+
+  const renderSubmissionSuccess = () => (
+    <div className="min-h-[100dvh] w-full px-4 py-10 sm:px-6">
+      <div className="mx-auto flex min-h-[calc(100dvh-5rem)] max-w-3xl items-center">
+        <div className="w-full rounded-2xl border border-gray-200 bg-surface/80 p-6 shadow-xl shadow-gray-200/70 sm:p-10">
+          <div className="space-y-6">
+            <div className="space-y-3">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">Assessment saved</p>
+              <h1 className="font-display text-3xl font-bold text-gray-900 sm:text-4xl">Assessment Complete 🎉</h1>
+              <div className="space-y-3 text-sm leading-6 text-gray-700 sm:text-base">
+                <p>Thanks for completing your Find Your Vertical assessment.</p>
+                <p>We've analysed your responses and generated your personalised creator profile.</p>
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-gray-200 bg-gray-50 p-5">
+              <h2 className="font-display text-lg font-semibold text-gray-900">What happens next?</h2>
+              <ul className="mt-4 space-y-3 text-sm leading-6 text-gray-700">
+                <li className="flex gap-3"><span className="text-success">✓</span><span>Your assessment has been saved.</span></li>
+                <li className="flex gap-3"><span className="text-success">✓</span><span>Your Creator DNA, Brand Clarity, Monetisation, Consistency, and Agency Opportunity scores have been calculated.</span></li>
+                <li className="flex gap-3"><span className="text-success">✓</span><span>Your personalised report is ready to view.</span></li>
+              </ul>
+            </div>
+
+            <div className="space-y-3">
+              <h2 className="font-display text-lg font-semibold text-gray-900">In your report you'll discover:</h2>
+              <ul className="grid gap-2 text-sm leading-6 text-gray-600 sm:grid-cols-2">
+                <li>Your strongest creator opportunities</li>
+                <li>The audience you're best suited to attract</li>
+                <li>Recommended content angles and positioning</li>
+                <li>Monetisation opportunities you may be overlooking</li>
+                <li className="sm:col-span-2">Practical next steps to grow your creator business</li>
+              </ul>
+            </div>
+
+            <div className="flex flex-col gap-3 border-t border-gray-200 pt-6 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm text-gray-500">
+                Preparing your report... Redirecting in {redirectCountdown} {redirectCountdown === 1 ? 'second' : 'seconds'}.
+              </p>
+              <button
+                type="button"
+                onClick={goToSubmittedReport}
+                className="inline-flex items-center justify-center rounded-lg bg-accent px-5 py-3 text-sm font-semibold text-white transition-all hover:bg-accent-2"
+              >
+                View My Report →
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 
   if (loading) {
     return (
@@ -976,7 +1153,13 @@ export function AssessmentWizard({ templateSlug }: { templateSlug?: string }) {
     );
   }
 
+  if (inviteAccessError) return <AssessmentAccessMessage message={inviteAccessError} />;
+
   if (notFound) return <AssessmentNotFound />;
+
+  if (INVITE_ONLY_MODE && inviteLink && !verifiedEmail) return renderEmailVerification();
+
+  if (submittedReportSlug) return renderSubmissionSuccess();
 
   return (
     <div className="min-h-[100dvh] w-full overflow-x-hidden px-4 py-8 sm:px-6 sm:py-10">
@@ -999,7 +1182,7 @@ export function AssessmentWizard({ templateSlug }: { templateSlug?: string }) {
         </div>
 
         {error && (
-          <div className="bg-red-900/20 border border-red-800 text-red-300 rounded-lg px-4 py-3 mb-6 text-sm">
+          <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 mb-6 text-sm">
             {error}
           </div>
         )}
@@ -1021,7 +1204,7 @@ export function AssessmentWizard({ templateSlug }: { templateSlug?: string }) {
         {isSubmitStep && (
           <div className="mx-auto max-w-lg space-y-6 animate-in">
             <h2 className="font-display text-xl font-semibold">Ready to generate your report?</h2>
-            <p className="text-sm leading-6 text-gray-400">
+            <p className="text-sm leading-6 text-gray-600">
               We will create your creator profile and assessment report from the details and answers you provided.
             </p>
           </div>
@@ -1031,7 +1214,7 @@ export function AssessmentWizard({ templateSlug }: { templateSlug?: string }) {
           {step > 0 && (
             <button
               onClick={() => setStep(s => s - 1)}
-              className="px-6 py-2.5 rounded-lg border border-gray-700 text-gray-400 hover:text-gray-200 hover:border-gray-500 transition-all text-sm font-medium"
+              className="px-6 py-2.5 rounded-lg border border-gray-300 text-gray-600 hover:text-gray-800 hover:border-gray-400 transition-all text-sm font-medium"
             >
               Back
             </button>
@@ -1040,7 +1223,7 @@ export function AssessmentWizard({ templateSlug }: { templateSlug?: string }) {
             <button
               onClick={() => setStep(s => s + 1)}
               disabled={!canNext()}
-              className="ml-auto px-6 py-2.5 rounded-lg bg-accent hover:bg-accent-2 text-gray-950 font-semibold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+              className="ml-auto px-6 py-2.5 rounded-lg bg-accent hover:bg-accent-2 text-white font-semibold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
             >
               Continue
             </button>
@@ -1048,7 +1231,7 @@ export function AssessmentWizard({ templateSlug }: { templateSlug?: string }) {
             <button
               onClick={handleSubmit}
               disabled={!canNext() || submitting}
-              className="ml-auto px-6 py-2.5 rounded-lg bg-accent hover:bg-accent-2 text-gray-950 font-semibold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+              className="ml-auto px-6 py-2.5 rounded-lg bg-accent hover:bg-accent-2 text-white font-semibold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {submitting ? 'Generating report...' : 'Get my Vertical Report'}
             </button>
@@ -1061,3 +1244,5 @@ export function AssessmentWizard({ templateSlug }: { templateSlug?: string }) {
     </div>
   );
 }
+
+
