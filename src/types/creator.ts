@@ -324,6 +324,29 @@ export interface ReportData {
   tech_stack: { tool: string; purpose: string }[];
   management_readiness: ManagementReadiness;
   day_90_plan: { phase: string; focus: string; actions: string[] }[];
+  executive_summary?: {
+    strengths: string[];
+    growth_opportunities: string[];
+    likely_creator_style: string;
+    likely_monetisation_style: string;
+    recommended_next_step: string;
+  };
+  score_interpretations?: Record<string, {
+    meaning: string;
+    why: string;
+    improve: string;
+  }>;
+  creator_archetype_summary?: {
+    primary_archetype: string;
+    secondary_archetype: string;
+    fit_explanation: string;
+  };
+  recommended_actions?: { title: string; rationale: string }[];
+  creator_agency_opportunity?: {
+    growth_potential: string;
+    coaching_suitability: string;
+    recommended_support: string;
+  };
   creator_dna_profile?: Omit<CreatorDnaProfile, 'id' | 'created_at'>;
   why_this_result: {
     summary: string;

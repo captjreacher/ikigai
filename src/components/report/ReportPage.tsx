@@ -9,30 +9,177 @@ const AGENCY_PROMPT_COPY = 'Would you like to discuss what this result could mea
 type ReportAction = 'print_save' | 'email' | 'share' | 'discuss';
 type AgencyAnswer = 'yes' | 'no';
 
+const REPORT_CARD_CLASS = 'rounded-xl border border-white/10 bg-[#101827] p-5 shadow-xl shadow-black/20';
+const REPORT_TEXT_CLASS = 'text-sm leading-6 text-slate-300';
+const REPORT_HEADING_CLASS = 'font-display font-semibold text-white';
+const REPORT_OUTLINE_BUTTON_CLASS = 'rounded-lg border border-white/20 bg-white/5 px-4 py-2 text-sm font-medium text-slate-100 transition-colors hover:border-accent/70 hover:bg-accent/10 hover:text-white';
+
+type PublicScoreKey = 'creator_dna' | 'brand_clarity' | 'monetisation' | 'consistency';
+
+type ScoreInsight = {
+  meaning: string;
+  why: string;
+  improve: string;
+};
+
+type ReportGuidance = {
+  executiveSummary: NonNullable<ReportData['executive_summary']>;
+  scoreInterpretations: Record<string, ScoreInsight>;
+  archetypeSummary: NonNullable<ReportData['creator_archetype_summary']>;
+  recommendedActions: NonNullable<ReportData['recommended_actions']>;
+  agencyOpportunity: NonNullable<ReportData['creator_agency_opportunity']>;
+};
+
+const SCORE_LABELS: Record<PublicScoreKey, string> = {
+  creator_dna: 'Creator DNA',
+  brand_clarity: 'Brand Clarity',
+  monetisation: 'Monetisation',
+  consistency: 'Consistency',
+};
+
+function scoreBand(score: number): string {
+  if (score >= 75) return 'strong';
+  if (score >= 55) return 'developing';
+  return 'early-stage';
+}
+
+function scoreLabelFor(key: string): string {
+  return SCORE_LABELS[key as PublicScoreKey] ?? key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
+function fallbackScoreInsight(key: string, score: number, report: ReportData): ScoreInsight {
+  const label = scoreLabelFor(key);
+  const band = scoreBand(score);
+  const commonWhy = report.why_this_result?.summary ?? `This reflects how your answers mapped to ${report.archetype} positioning.`;
+
+  const improvements: Record<string, string> = {
+    creator_dna: 'Build repeatable formats around your strongest natural traits and review which content creates saves, replies, subscriptions, or custom requests.',
+    brand_clarity: 'Sharpen your niche promise across your bio, pinned content, visual themes, and first three recurring content lanes.',
+    monetisation: 'Create a simple paid pathway with an entry offer, recurring engagement, and one premium upsell.',
+    consistency: 'Choose a minimum sustainable posting rhythm and batch two repeatable formats before adding more complexity.',
+  };
+
+  return {
+    meaning: `${label} is ${band}, showing how this part of your creator foundation is performing right now.`,
+    why: commonWhy,
+    improve: improvements[key] ?? 'Focus on one clear improvement sprint, measure response, and refine from the strongest signal.',
+  };
+}
+
+function buildGuidance(report: ReportData, publicScores: Record<string, number>): ReportGuidance {
+  const scoreEntries = Object.entries(publicScores);
+  const weakestScore = [...scoreEntries].sort((a, b) => a[1] - b[1])[0]?.[0] ?? 'brand_clarity';
+  const firstVertical = report.top_verticals[0]?.name ?? 'your strongest content lane';
+  const summary = report.executive_summary ?? {
+    strengths: report.archetype_strengths.slice(0, 3),
+    growth_opportunities: [
+      weakestScore === 'monetisation' ? 'Clarify how attention turns into paid offers.' : 'Make your creator promise easier to understand quickly.',
+      `Turn ${firstVertical} into a repeatable test lane.`,
+      'Use audience response to prioritise the content formats that convert.',
+    ],
+    likely_creator_style: `${report.archetype}: ${report.archetype_description}`,
+    likely_monetisation_style: report.pricing_strategy,
+    recommended_next_step: weakestScore === 'consistency'
+      ? 'Build a simple two-week posting cadence before adding new content ideas.'
+      : weakestScore === 'monetisation'
+        ? 'Define your first paid pathway from discovery content to premium offer.'
+        : 'Clarify your niche promise across bio, pinned content, and recurring formats.',
+  };
+
+  const scoreInterpretations = Object.fromEntries(
+    scoreEntries.map(([key, value]) => [
+      key,
+      report.score_interpretations?.[key] ?? fallbackScoreInsight(key, value, report),
+    ])
+  ) as Record<string, ScoreInsight>;
+
+  return {
+    executiveSummary: summary,
+    scoreInterpretations,
+    archetypeSummary: report.creator_archetype_summary ?? {
+      primary_archetype: report.archetype,
+      secondary_archetype: report.top_verticals[0]?.name ?? 'Audience Relationship Builder',
+      fit_explanation: report.why_this_result?.summary ?? report.archetype_description,
+    },
+    recommendedActions: report.recommended_actions ?? [
+      { title: 'Improve posting consistency', rationale: 'Create a cadence you can maintain long enough to learn from audience response.' },
+      { title: 'Define niche', rationale: 'Make the same creator promise visible across profile, content, and offers.' },
+      { title: 'Expand content mix', rationale: `Test ${firstVertical} as a repeatable lane before spreading effort across too many formats.` },
+      { title: 'Improve monetisation approach', rationale: 'Give fans a clearer path from discovery to paid access or premium requests.' },
+    ],
+    agencyOpportunity: report.creator_agency_opportunity ?? {
+      growth_potential: 'Your profile shows growth potential if positioning, content cadence, and monetisation are developed together.',
+      coaching_suitability: 'A strategy review can help identify which few changes are most likely to improve traction.',
+      recommended_support: 'Recommended support: a focused strategy call to prioritise niche, consistency, and monetisation foundations.',
+    },
+  };
+}
+
 function ScoreBar({ label, score }: { label: string; score: number }) {
-  const color = score >= 70 ? 'bg-success' : score >= 45 ? 'bg-warn' : 'bg-pink';
+  const width = Math.max(0, Math.min(100, score));
   return (
     <div className="space-y-1">
       <div className="flex justify-between text-xs">
-        <span className="text-gray-600">{label}</span>
-        <span className="font-semibold text-gray-800">{score}/100</span>
+        <span className="text-slate-300">{label}</span>
+        <span className="font-semibold text-white">{score}/100</span>
       </div>
-      <div className="h-2 bg-surface-3 rounded-full overflow-hidden">
-        <div className={`h-full ${color} rounded-full transition-colors`} style={{ width: `${score}%` }} />
+      <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+        <div className="h-full rounded-full bg-accent transition-colors" style={{ width: `${width}%` }} />
       </div>
     </div>
   );
 }
 
-function ScoreCard({ title, scores }: { title: string; scores: Record<string, number> }) {
+function ScoreCard({ title, scores, interpretations }: { title: string; scores: Record<string, number>; interpretations: Record<string, ScoreInsight> }) {
   return (
-    <div className="bg-surface border border-gray-200 rounded-xl p-5">
-      <h3 className="font-display font-semibold text-lg mb-4">{title}</h3>
-      <div className="space-y-3">
+    <div className={REPORT_CARD_CLASS}>
+      <h3 className={`${REPORT_HEADING_CLASS} mb-4 text-lg`}>{title}</h3>
+      <div className="space-y-5">
         {Object.entries(scores).map(([k, v]) => (
-          <ScoreBar key={k} label={k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())} score={v} />
+          <div key={k} className="space-y-3 rounded-lg border border-white/10 bg-white/[0.03] p-4">
+            <ScoreBar label={scoreLabelFor(k)} score={v} />
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+              <ScoreExplanation title="What it means" text={interpretations[k]?.meaning} />
+              <ScoreExplanation title="Why you got this" text={interpretations[k]?.why} />
+              <ScoreExplanation title="How to improve" text={interpretations[k]?.improve} />
+            </div>
+          </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+function ScoreExplanation({ title, text }: { title: string; text?: string }) {
+  return (
+    <div>
+      <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-accent">{title}</div>
+      <p className="text-xs leading-5 text-slate-300">{text}</p>
+    </div>
+  );
+}
+
+function SummaryBlock({ title, text }: { title: string; text: string }) {
+  return (
+    <div>
+      <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-accent">{title}</h3>
+      <p className="text-sm leading-6 text-slate-300">{text}</p>
+    </div>
+  );
+}
+
+function SummaryList({ title, items }: { title: string; items: string[] }) {
+  return (
+    <div>
+      <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-accent">{title}</h3>
+      <ul className="space-y-2">
+        {items.map(item => (
+          <li key={item} className="flex gap-2 text-sm leading-6 text-slate-300">
+            <span className="text-accent">+</span>
+            <span>{item}</span>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
@@ -57,10 +204,17 @@ export function ReportPage() {
         if (storedAnswer === 'yes' || storedAnswer === 'no') setAgencyAnswer(storedAnswer);
         if (r && !window.sessionStorage.getItem(`reportViewed:${slug}`)) {
           window.sessionStorage.setItem(`reportViewed:${slug}`, 'true');
+          const seenKey = `reportSeen:${slug}`;
+          const isReturnVisit = window.localStorage.getItem(seenKey) === 'true';
+          window.localStorage.setItem(seenKey, 'true');
           void trackCreatorEvent({
             profileId: r.creator_profile_id,
-            eventType: 'report_viewed',
-            details: { report_slug: r.report_slug, viewed_at: new Date().toISOString() },
+            eventType: isReturnVisit ? 'report.return_visit' : 'report_viewed',
+            details: {
+              report_slug: r.report_slug,
+              viewed_at: new Date().toISOString(),
+              is_return_visit: isReturnVisit,
+            },
           });
         }
       })
@@ -70,17 +224,17 @@ export function ReportPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="animate-pulse text-gray-500">Loading Report...</div>
+      <div className="min-h-screen flex items-center justify-center bg-[#07101f]">
+        <div className="animate-pulse text-slate-300">Loading Report...</div>
       </div>
     );
   }
 
   if (loadError || !report) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-4">
-        <h1 className="font-display text-2xl font-bold mb-4">Report Not Found</h1>
-        <p className="max-w-md text-center text-sm leading-6 text-gray-600">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[#07101f] p-4 text-slate-200">
+        <h1 className="font-display text-2xl font-bold mb-4 text-white">Report Not Found</h1>
+        <p className="max-w-md text-center text-sm leading-6 text-slate-300">
           {loadError || 'This report link may have expired or been moved. Check the link or contact the person who sent it to you.'}
         </p>
       </div>
@@ -91,10 +245,10 @@ export function ReportPage() {
   const publicScores = Object.fromEntries(
     Object.entries(d.scores).filter(([key]) => key !== 'agency_opportunity')
   ) as Record<string, number>;
+  const guidance = buildGuidance(d, publicScores);
 
   const printSaveReport = async () => {
-    window.print();
-    const blob = createReportPdfBlob(d, publicScores);
+    const blob = createReportPdfBlob(d, publicScores, guidance);
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
@@ -106,8 +260,8 @@ export function ReportPage() {
 
     await trackCreatorEvent({
       profileId: report.creator_profile_id,
-      eventType: 'report.print_saved',
-      details: { report_slug: report.report_slug, actioned_at: new Date().toISOString(), format: 'print_pdf' },
+      eventType: 'report.pdf_downloaded',
+      details: { report_slug: report.report_slug, downloaded_at: new Date().toISOString(), format: 'pdf' },
     });
   };
 
@@ -143,7 +297,7 @@ export function ReportPage() {
         await navigator.share(shareData);
         await trackCreatorEvent({
           profileId: report.creator_profile_id,
-          eventType: 'report.share_clicked',
+          eventType: 'report.shared',
           details: { report_slug: report.report_slug, shared_at: new Date().toISOString(), method: 'native_share' },
         });
         return;
@@ -152,7 +306,7 @@ export function ReportPage() {
       await navigator.clipboard.writeText(window.location.href);
       await trackCreatorEvent({
         profileId: report.creator_profile_id,
-        eventType: 'report.share_clicked',
+        eventType: 'report.shared',
         details: { report_slug: report.report_slug, shared_at: new Date().toISOString(), method: 'clipboard' },
       });
       setActionMessage('Report link copied.');
@@ -210,15 +364,15 @@ export function ReportPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[#07101f] text-slate-200">
       {/* Hero */}
-      <div className="border-b border-gray-200 bg-surface/50">
+      <div className="border-b border-white/10 bg-[#0b1424]">
         <div className="max-w-4xl mx-auto px-6 py-12">
           <p className="mb-4 text-xs font-semibold uppercase tracking-[0.18em] text-accent">Find Your Vertical Report</p>
           <div className="flex items-start justify-between flex-wrap gap-4">
             <div>
-              <h1 className="font-display text-3xl font-bold mb-2">{d.archetype}</h1>
-              <p className="text-gray-600 max-w-lg">{d.archetype_description}</p>
+              <h1 className="font-display text-4xl font-bold mb-3 text-white">{d.archetype}</h1>
+              <p className="max-w-lg text-lg leading-8 text-slate-300">{d.archetype_description}</p>
             </div>
             <ConfidenceBadge confidence={d.result_confidence ?? 'Moderate'} />
           </div>
@@ -226,30 +380,44 @@ export function ReportPage() {
       </div>
 
       <div className="max-w-4xl mx-auto px-6 py-10 space-y-10">
-        <section className="space-y-4">
-          <h2 className="font-display text-2xl font-bold text-gray-900">Your Find Your Vertical Report</h2>
-          <div className="space-y-3 text-sm leading-6 text-gray-600">
-            <p>This report is designed to help you understand where your greatest creator opportunities exist today.</p>
-            <p>The recommendations are based on your responses, creator profile, content preferences, commercial goals, and growth readiness.</p>
-            <p>Use this report as a starting point, not a final destination. The most successful creators continuously refine their positioning, content strategy, and audience focus over time.</p>
-            <p>Review your results below and pay particular attention to the recommended actions and opportunities with the highest potential impact.</p>
+        <section>
+          <h2 className="font-display mb-4 text-2xl font-bold text-white">About Your Results</h2>
+          <div className={`${REPORT_CARD_CLASS} space-y-6`}>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <SummaryList title="Strengths" items={guidance.executiveSummary.strengths} />
+              <SummaryList title="Growth Opportunities" items={guidance.executiveSummary.growth_opportunities} />
+            </div>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+              <SummaryBlock title="Likely Creator Style" text={guidance.executiveSummary.likely_creator_style} />
+              <SummaryBlock title="Likely Monetisation Style" text={guidance.executiveSummary.likely_monetisation_style} />
+              <SummaryBlock title="Recommended Next Step" text={guidance.executiveSummary.recommended_next_step} />
+            </div>
           </div>
         </section>
 
         {/* Scores */}
-        <ScoreCard title="Creator Signals" scores={publicScores} />
+        <ScoreCard title="Score Interpretation" scores={publicScores} interpretations={guidance.scoreInterpretations} />
+
+        <section>
+          <h2 className={`${REPORT_HEADING_CLASS} mb-4 text-xl`}>Creator Archetype Summary</h2>
+          <div className={`${REPORT_CARD_CLASS} grid grid-cols-1 gap-4 md:grid-cols-3`}>
+            <SummaryBlock title="Primary Archetype" text={guidance.archetypeSummary.primary_archetype} />
+            <SummaryBlock title="Secondary Archetype" text={guidance.archetypeSummary.secondary_archetype} />
+            <SummaryBlock title="Explanation of Fit" text={guidance.archetypeSummary.fit_explanation} />
+          </div>
+        </section>
 
         {d.why_this_result && (
           <section>
-            <h2 className="font-display text-xl font-semibold mb-4">Why This Result?</h2>
-            <div className="bg-surface border border-gray-200 rounded-xl p-5 space-y-5">
-              <p className="text-sm text-gray-700 leading-relaxed">{d.why_this_result.summary}</p>
+            <h2 className={`${REPORT_HEADING_CLASS} mb-4 text-xl`}>Why This Result?</h2>
+            <div className={`${REPORT_CARD_CLASS} space-y-5`}>
+              <p className={REPORT_TEXT_CLASS}>{d.why_this_result.summary}</p>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                 <div>
                   <h3 className="text-xs font-semibold uppercase tracking-wide text-accent mb-2">Behavioural Signals</h3>
                   <ul className="space-y-1.5">
                     {(d.why_this_result.strongest_behavioural_signals ?? d.why_this_result.top_signals ?? []).map(signal => (
-                      <li key={signal} className="text-sm text-gray-600">{signal}</li>
+                      <li key={signal} className={REPORT_TEXT_CLASS}>{signal}</li>
                     ))}
                   </ul>
                 </div>
@@ -257,7 +425,7 @@ export function ReportPage() {
                   <h3 className="text-xs font-semibold uppercase tracking-wide text-accent mb-2">Creator Strengths</h3>
                   <ul className="space-y-1.5">
                     {(d.why_this_result.strongest_creator_strengths ?? d.why_this_result.strongest_answers ?? []).map(answer => (
-                      <li key={answer} className="text-sm text-gray-600">{answer}</li>
+                      <li key={answer} className={REPORT_TEXT_CLASS}>{answer}</li>
                     ))}
                   </ul>
                 </div>
@@ -265,7 +433,7 @@ export function ReportPage() {
                   <h3 className="text-xs font-semibold uppercase tracking-wide text-accent mb-2">Content Signals</h3>
                   <ul className="space-y-1.5">
                     {(d.why_this_result.strongest_content_opportunity_signals ?? d.why_this_result.key_differentiators ?? []).map(item => (
-                      <li key={item} className="text-sm text-gray-600">{item}</li>
+                      <li key={item} className={REPORT_TEXT_CLASS}>{item}</li>
                     ))}
                   </ul>
                 </div>
@@ -276,31 +444,43 @@ export function ReportPage() {
 
         {/* Archetype Deep Dive */}
         <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-surface border border-success/30 rounded-xl p-5">
-            <h3 className="font-semibold text-success mb-3 text-sm uppercase tracking-wide">Strengths</h3>
-            <ul className="space-y-2">{d.archetype_strengths.map(s => <li key={s} className="text-sm text-gray-700 flex gap-2"><span className="text-success">+</span>{s}</li>)}</ul>
+          <div className={REPORT_CARD_CLASS}>
+            <h3 className="font-semibold text-accent mb-3 text-sm uppercase tracking-wide">Strengths</h3>
+            <ul className="space-y-2">{d.archetype_strengths.map(s => <li key={s} className={`${REPORT_TEXT_CLASS} flex gap-2`}><span className="text-accent">+</span>{s}</li>)}</ul>
           </div>
-          <div className="bg-surface border border-pink/20 rounded-xl p-5">
-            <h3 className="font-semibold text-pink mb-3 text-sm uppercase tracking-wide">Risks</h3>
-            <ul className="space-y-2">{d.archetype_risks.map(s => <li key={s} className="text-sm text-gray-700 flex gap-2"><span className="text-pink">!</span>{s}</li>)}</ul>
+          <div className={REPORT_CARD_CLASS}>
+            <h3 className="font-semibold text-white mb-3 text-sm uppercase tracking-wide">Risks</h3>
+            <ul className="space-y-2">{d.archetype_risks.map(s => <li key={s} className={`${REPORT_TEXT_CLASS} flex gap-2`}><span className="text-accent">!</span>{s}</li>)}</ul>
           </div>
-          <div className="bg-surface border border-accent/20 rounded-xl p-5">
+          <div className={REPORT_CARD_CLASS}>
             <h3 className="font-semibold text-accent mb-3 text-sm uppercase tracking-wide">Growth</h3>
-            <ul className="space-y-2">{d.archetype_growth.map(s => <li key={s} className="text-sm text-gray-700 flex gap-2"><span className="text-accent">-&gt;</span>{s}</li>)}</ul>
+            <ul className="space-y-2">{d.archetype_growth.map(s => <li key={s} className={`${REPORT_TEXT_CLASS} flex gap-2`}><span className="text-accent">-&gt;</span>{s}</li>)}</ul>
+          </div>
+        </section>
+
+        <section>
+          <h2 className={`${REPORT_HEADING_CLASS} mb-4 text-xl`}>Recommended Next Steps</h2>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            {guidance.recommendedActions.map(action => (
+              <div key={action.title} className={REPORT_CARD_CLASS}>
+                <h3 className="font-semibold text-accent">{action.title}</h3>
+                <p className="mt-2 text-sm leading-6 text-slate-300">{action.rationale}</p>
+              </div>
+            ))}
           </div>
         </section>
 
         {/* Top 3 Verticals */}
         <section>
-          <h2 className="font-display text-xl font-semibold mb-4">Top 3 Content Verticals</h2>
-          <p className="text-sm text-gray-500 mb-4">These are recommended directions to explore, not a fixed content plan.</p>
+          <h2 className={`${REPORT_HEADING_CLASS} mb-4 text-xl`}>Top 3 Content Verticals</h2>
+          <p className="text-sm text-slate-400 mb-4">These are recommended directions to explore, not a fixed content plan.</p>
           <div className="space-y-3">
             {d.top_verticals.map((v, i) => (
-              <div key={v.name} className="bg-surface border border-gray-200 rounded-xl p-5 flex gap-4">
+              <div key={v.name} className={`${REPORT_CARD_CLASS} flex gap-4`}>
                 <span className="font-display text-3xl text-accent shrink-0">0{i + 1}</span>
                 <div>
-                  <h3 className="font-semibold text-gray-900">{v.name}</h3>
-                  <p className="text-sm text-gray-500 mt-1">{v.rationale}</p>
+                  <h3 className="font-semibold text-white">{v.name}</h3>
+                  <p className="text-sm text-slate-300 mt-1">{v.rationale}</p>
                 </div>
               </div>
             ))}
@@ -309,36 +489,45 @@ export function ReportPage() {
 
         {/* Pricing */}
         <section>
-          <h2 className="font-display text-xl font-semibold mb-4">Monetisation Opportunity</h2>
-          <div className="bg-surface border border-accent/20 rounded-xl p-5">
-            <p className="text-sm text-gray-700 leading-relaxed">{d.pricing_strategy}</p>
+          <h2 className={`${REPORT_HEADING_CLASS} mb-4 text-xl`}>Monetisation Opportunity</h2>
+          <div className={REPORT_CARD_CLASS}>
+            <p className={REPORT_TEXT_CLASS}>{d.pricing_strategy}</p>
           </div>
         </section>
 
         {/* Winning 10 */}
         <section>
-          <h2 className="font-display text-xl font-semibold mb-4">Content Testing Opportunity</h2>
-          <div className="bg-surface border border-gray-200 rounded-xl p-5">
-            <p className="text-sm text-gray-700 leading-relaxed">{d.winning_10_framework}</p>
+          <h2 className={`${REPORT_HEADING_CLASS} mb-4 text-xl`}>Content Testing Opportunity</h2>
+          <div className={REPORT_CARD_CLASS}>
+            <p className={REPORT_TEXT_CLASS}>{d.winning_10_framework}</p>
           </div>
         </section>
 
         {/* Growth Strategy */}
         <section>
-          <h2 className="font-display text-xl font-semibold mb-4">Growth Opportunity</h2>
-          <div className="bg-surface border border-gray-200 rounded-xl p-5">
-            <p className="text-sm text-gray-700 leading-relaxed">{d.growth_strategy}</p>
+          <h2 className={`${REPORT_HEADING_CLASS} mb-4 text-xl`}>Growth Opportunity</h2>
+          <div className={REPORT_CARD_CLASS}>
+            <p className={REPORT_TEXT_CLASS}>{d.growth_strategy}</p>
+          </div>
+        </section>
+
+        <section>
+          <h2 className={`${REPORT_HEADING_CLASS} mb-4 text-xl`}>Growth & Support Opportunity</h2>
+          <div className={`${REPORT_CARD_CLASS} grid grid-cols-1 gap-4 md:grid-cols-3`}>
+            <SummaryBlock title="Growth Potential" text={guidance.agencyOpportunity.growth_potential} />
+            <SummaryBlock title="Coaching Suitability" text={guidance.agencyOpportunity.coaching_suitability} />
+            <SummaryBlock title="Recommended Support" text={guidance.agencyOpportunity.recommended_support} />
           </div>
         </section>
 
         {/* Tech Stack */}
         <section>
-          <h2 className="font-display text-xl font-semibold mb-4">Support Systems to Consider</h2>
+          <h2 className={`${REPORT_HEADING_CLASS} mb-4 text-xl`}>Support Systems to Consider</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {d.tech_stack.map(t => (
-              <div key={t.tool} className="bg-surface border border-gray-200 rounded-xl p-4">
+              <div key={t.tool} className={REPORT_CARD_CLASS}>
                 <h3 className="font-semibold text-accent">{t.tool}</h3>
-                <p className="text-xs text-gray-500 mt-1">{t.purpose}</p>
+                <p className="mt-1 text-sm leading-6 text-slate-300">{t.purpose}</p>
               </div>
             ))}
           </div>
@@ -346,16 +535,16 @@ export function ReportPage() {
 
         {/* Opportunity Roadmap */}
         <section>
-          <h2 className="font-display text-xl font-semibold mb-4">Opportunity Roadmap</h2>
+          <h2 className={`${REPORT_HEADING_CLASS} mb-4 text-xl`}>Opportunity Roadmap</h2>
           <div className="space-y-4">
             {d.day_90_plan.map((phase, i) => (
-              <div key={phase.phase} className="bg-surface border border-gray-200 rounded-xl p-5">
+              <div key={phase.phase} className={REPORT_CARD_CLASS}>
                 <h3 className="font-semibold text-accent mb-1">{phase.phase}</h3>
-                <p className="text-xs text-gray-500 mb-3">{phase.focus}</p>
+                <p className="mb-3 text-sm text-slate-400">{phase.focus}</p>
                 <ul className="space-y-1.5">
                   {phase.actions.map(a => (
-                    <li key={a} className="text-sm text-gray-700 flex gap-2">
-                      <span className="text-gray-600 shrink-0">{i + 1}.{phase.actions.indexOf(a) + 1}</span>
+                    <li key={a} className={`${REPORT_TEXT_CLASS} flex gap-2`}>
+                      <span className="text-accent shrink-0">{i + 1}.{phase.actions.indexOf(a) + 1}</span>
                       {a}
                     </li>
                   ))}
@@ -367,12 +556,12 @@ export function ReportPage() {
 
         {/* Next CTA */}
         <section>
-          <h2 className="font-display text-xl font-semibold mb-4">What's Next?</h2>
-          <div className="bg-surface border border-accent/20 rounded-xl p-5 space-y-4">
-            <p className="text-sm text-gray-700 leading-relaxed">
+          <h2 className={`${REPORT_HEADING_CLASS} mb-4 text-xl`}>What's Next?</h2>
+          <div className={`${REPORT_CARD_CLASS} space-y-4 border-accent/40 bg-accent/10`}>
+            <p className={REPORT_TEXT_CLASS}>
               Your assessment highlights several opportunities that could significantly improve positioning, audience growth, and monetisation.
             </p>
-            <p className="text-sm text-gray-700 leading-relaxed">
+            <p className={REPORT_TEXT_CLASS}>
               A strategy discussion can help determine which opportunities are most relevant to your goals and whether creator management support could accelerate your progress.
             </p>
             <button
@@ -385,15 +574,15 @@ export function ReportPage() {
         </section>
 
         {/* Report Actions */}
-        <div className="border-t border-gray-200 py-6">
+        <div className="border-t border-white/10 py-6">
           <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-center">
-            <button onClick={() => startReportAction('print_save')} className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:border-gray-400">
-              Print / Save
+            <button onClick={() => startReportAction('print_save')} className={REPORT_OUTLINE_BUTTON_CLASS}>
+              Download PDF
             </button>
-            <button onClick={() => startReportAction('email')} className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:border-gray-400">
+            <button onClick={() => startReportAction('email')} className={REPORT_OUTLINE_BUTTON_CLASS}>
               Email me this report
             </button>
-            <button onClick={() => startReportAction('share')} className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:border-gray-400">
+            <button onClick={() => startReportAction('share')} className={REPORT_OUTLINE_BUTTON_CLASS}>
               Share report
             </button>
             <button onClick={() => startReportAction('discuss')} className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white hover:bg-accent-2">
@@ -406,10 +595,10 @@ export function ReportPage() {
       </div>
 
       {pendingAction && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/80 px-4">
-          <div className="w-full max-w-md rounded-xl border border-gray-200 bg-surface p-5 shadow-2xl">
-            <h2 className="font-display text-xl font-semibold">{AGENCY_PROMPT_COPY}</h2>
-            <p className="mt-3 text-sm leading-6 text-gray-600">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
+          <div className="w-full max-w-md rounded-xl border border-white/15 bg-[#101827] p-5 shadow-2xl">
+            <h2 className={`${REPORT_HEADING_CLASS} text-xl`}>{AGENCY_PROMPT_COPY}</h2>
+            <p className="mt-3 text-sm leading-6 text-slate-300">
               A short Find Your Vertical strategy discussion can help translate your report into the most relevant next steps for your goals.
             </p>
             {actionError && <p className="mt-4 rounded-lg border border-pink/30 bg-pink/10 px-3 py-2 text-sm text-pink">{actionError}</p>}
@@ -419,12 +608,12 @@ export function ReportPage() {
                 disabled={promptWorking}
                 className="rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-white hover:bg-accent-2 disabled:opacity-50"
               >
-                {promptWorking ? 'Opening Calendar…' : "Yes, I'd Like to Discuss My Results"}
+                {promptWorking ? 'Opening Calendar...' : "Yes, I'd Like to Discuss My Results"}
               </button>
               <button
                 onClick={continueWithoutAgency}
                 disabled={promptWorking}
-                className="rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:border-gray-400 disabled:opacity-50"
+                className={`${REPORT_OUTLINE_BUTTON_CLASS} disabled:opacity-50`}
               >
                 Not right now, continue
               </button>
@@ -437,14 +626,8 @@ export function ReportPage() {
 }
 
 function ConfidenceBadge({ confidence }: { confidence: ReportData['result_confidence'] }) {
-  const colors: Record<ReportData['result_confidence'], string> = {
-    High: 'bg-success/20 text-success border-success/30',
-    Moderate: 'bg-warn/20 text-warn border-warn/30',
-    Low: 'bg-pink/20 text-pink border-pink/30',
-  };
-
   return (
-    <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${colors[confidence]}`}>
+    <span className="rounded-full border border-accent/50 bg-accent/15 px-3 py-1 text-xs font-semibold text-white">
       Result Confidence: {confidence}
     </span>
   );
@@ -477,16 +660,39 @@ function pdfEscape(text: string): string {
     .replace(/\)/g, '\\)');
 }
 
-function createReportPdfBlob(report: ReportData, publicScores: Record<string, number>): Blob {
+function createReportPdfBlob(report: ReportData, publicScores: Record<string, number>, guidance: ReportGuidance): Blob {
   const why = report.why_this_result;
   const sections: Array<{ title: string; body: string[] }> = [
     {
-      title: 'Result Confidence',
-      body: [report.result_confidence ?? 'Moderate'],
+      title: 'About Your Results',
+      body: [
+        `Strengths: ${guidance.executiveSummary.strengths.join('; ')}`,
+        `Growth opportunities: ${guidance.executiveSummary.growth_opportunities.join('; ')}`,
+        `Likely creator style: ${guidance.executiveSummary.likely_creator_style}`,
+        `Likely monetisation style: ${guidance.executiveSummary.likely_monetisation_style}`,
+        `Recommended next step: ${guidance.executiveSummary.recommended_next_step}`,
+      ],
     },
     {
-      title: 'Creator Scores',
-      body: Object.entries(publicScores).map(([key, value]) => `${key.replace(/_/g, ' ')}: ${value}/100`),
+      title: 'Score Interpretation',
+      body: Object.entries(publicScores).flatMap(([key, value]) => {
+        const insight = guidance.scoreInterpretations[key];
+        return [
+          `${scoreLabelFor(key)}: ${value}/100`,
+          `Meaning: ${insight.meaning}`,
+          `Why: ${insight.why}`,
+          `Improve: ${insight.improve}`,
+        ];
+      }),
+    },
+    {
+      title: 'Creator Archetype Summary',
+      body: [
+        `Primary archetype: ${guidance.archetypeSummary.primary_archetype}`,
+        `Secondary archetype: ${guidance.archetypeSummary.secondary_archetype}`,
+        `Fit: ${guidance.archetypeSummary.fit_explanation}`,
+        `Result confidence: ${report.result_confidence ?? 'Moderate'}`,
+      ],
     },
     {
       title: 'Why This Result?',
@@ -507,6 +713,18 @@ function createReportPdfBlob(report: ReportData, publicScores: Record<string, nu
       body: [report.pricing_strategy, report.winning_10_framework, report.growth_strategy],
     },
     {
+      title: 'Recommended Next Steps',
+      body: guidance.recommendedActions.map(action => `${action.title}: ${action.rationale}`),
+    },
+    {
+      title: 'Growth & Support Opportunity',
+      body: [
+        `Growth potential: ${guidance.agencyOpportunity.growth_potential}`,
+        `Coaching suitability: ${guidance.agencyOpportunity.coaching_suitability}`,
+        `Recommended support: ${guidance.agencyOpportunity.recommended_support}`,
+      ],
+    },
+    {
       title: "What's Next?",
       body: [
         'Your assessment highlights several opportunities that could significantly improve positioning, audience growth, and monetisation.',
@@ -515,25 +733,31 @@ function createReportPdfBlob(report: ReportData, publicScores: Record<string, nu
     },
   ];
 
-  const pages: string[][] = [[]];
+  const pageBackground = '0.027 0.063 0.122 rg 0 0 612 792 re f';
+  const colorFor = (color: 'orange' | 'white' | 'muted') => {
+    if (color === 'orange') return '0.976 0.451 0.086 rg';
+    if (color === 'white') return '1 1 1 rg';
+    return '0.796 0.835 0.882 rg';
+  };
+  const pages: string[][] = [[pageBackground]];
   let y = 770;
-  const addLine = (line: string, fontSize = 10) => {
+  const addLine = (line: string, fontSize = 10, color: 'orange' | 'white' | 'muted' = 'muted') => {
     if (y < 50) {
-      pages.push([]);
+      pages.push([pageBackground]);
       y = 770;
     }
-    pages[pages.length - 1].push(`BT /F1 ${fontSize} Tf 50 ${y} Td (${pdfEscape(line)}) Tj ET`);
+    pages[pages.length - 1].push(`${colorFor(color)} BT /F1 ${fontSize} Tf 50 ${y} Td (${pdfEscape(line)}) Tj ET`);
     y -= fontSize + 5;
   };
 
-  addLine('Find Your Vertical Creator Assessment', 10);
-  addLine('Find Your Vertical Report', 18);
-  addLine(report.archetype, 14);
+  addLine('Find Your Vertical Creator Assessment', 10, 'orange');
+  addLine('Find Your Vertical Report', 18, 'white');
+  addLine(report.archetype, 14, 'orange');
   wrapPdfText(report.archetype_description).forEach(line => addLine(line));
   y -= 8;
 
   for (const section of sections) {
-    addLine(section.title, 13);
+    addLine(section.title, 13, 'orange');
     for (const item of section.body) {
       wrapPdfText(item).forEach(line => addLine(line));
       y -= 3;

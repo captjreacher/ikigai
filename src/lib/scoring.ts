@@ -33,6 +33,11 @@ export interface ScoringResult {
   why_this_result: ReportData['why_this_result'];
   internal_agency_scores: ReportData['internal_agency_scores'];
   agency_recommendation: ReportData['agency_recommendation'];
+  executive_summary: NonNullable<ReportData['executive_summary']>;
+  score_interpretations: NonNullable<ReportData['score_interpretations']>;
+  creator_archetype_summary: NonNullable<ReportData['creator_archetype_summary']>;
+  recommended_actions: NonNullable<ReportData['recommended_actions']>;
+  creator_agency_opportunity: NonNullable<ReportData['creator_agency_opportunity']>;
   report_tier: ReportData['report_tier'];
   free_report_summary: string;
   premium_report_available: boolean;
@@ -532,6 +537,129 @@ function whyThisResult(r: AssessmentResponses, scores: ScoreBreakdown, archetype
   };
 }
 
+function bandFor(score: number): string {
+  if (score >= 75) return 'strong';
+  if (score >= 55) return 'developing';
+  return 'early-stage';
+}
+
+function scoreInterpretations(scores: ScoreBreakdown, why: ReportData['why_this_result']): NonNullable<ReportData['score_interpretations']> {
+  return {
+    creator_dna: {
+      meaning: `Your creator DNA is ${bandFor(scores.creator_dna)}, showing how clearly your natural personality, confidence, and audience magnetism can translate into content.`,
+      why: `This score was shaped by signals such as ${(why.strongest_creator_strengths ?? []).slice(0, 3).join(', ') || 'your stated strengths'} and your comfort with showing up on camera.`,
+      improve: 'Build repeatable formats around the traits that feel most natural, then review which posts get saves, replies, subscriptions, or custom requests.',
+    },
+    brand_clarity: {
+      meaning: `Your brand clarity is ${bandFor(scores.brand_clarity)}, reflecting how quickly a new fan can understand your niche, promise, and fantasy angle.`,
+      why: `This score reflects your archetype alignment, content interests, boundary clarity, and the specificity of your fantasy or positioning signals.`,
+      improve: 'Tighten your bio, pinned content, visual themes, and recurring content lanes so the same creator promise appears everywhere a fan discovers you.',
+    },
+    monetisation: {
+      meaning: `Your monetisation readiness is ${bandFor(scores.monetisation)}, showing how naturally your current positioning can support subscriptions, premium offers, or high-value fan journeys.`,
+      why: 'This score was influenced by your target audience strategy, comfort with fan connection, content boundaries, and premium content fit.',
+      improve: 'Define one clear paid pathway: entry offer, recurring engagement, and a premium upsell such as bundles, custom content, or high-touch fan interactions.',
+    },
+    consistency: {
+      meaning: `Your consistency signal is ${bandFor(scores.consistency)}, indicating how sustainable your current creator direction may be over repeated weekly execution.`,
+      why: 'This score reflects work-ethic signals, passion-topic depth, audience strategy, and whether your chosen archetype can become a repeatable content system.',
+      improve: 'Choose a minimum viable posting rhythm, batch two recurring formats, and track what you can maintain without burning out.',
+    },
+  };
+}
+
+function executiveSummary(
+  scores: ScoreBreakdown,
+  archetype: CreatorArchetype,
+  details: ArchetypeDetails,
+  topVerticals: { name: ContentVertical; rationale: string }[],
+  pricingStrategy: string
+): NonNullable<ReportData['executive_summary']> {
+  const lowestScore = Object.entries({
+    brand_clarity: scores.brand_clarity,
+    monetisation: scores.monetisation,
+    consistency: scores.consistency,
+  }).sort((a, b) => a[1] - b[1])[0]?.[0];
+
+  const growthByScore: Record<string, string> = {
+    brand_clarity: 'Sharper niche definition and stronger profile-level positioning.',
+    monetisation: 'A clearer paid offer ladder and more intentional premium fan journey.',
+    consistency: 'A sustainable posting rhythm with fewer one-off content decisions.',
+  };
+
+  return {
+    strengths: details.archetype_strengths.slice(0, 3),
+    growth_opportunities: [
+      growthByScore[lowestScore ?? 'brand_clarity'],
+      topVerticals[0] ? `Turn ${topVerticals[0].name} into a repeatable test lane.` : 'Test one repeatable content lane before expanding.',
+      'Use performance feedback to refine your strongest audience segment.',
+    ],
+    likely_creator_style: `${archetype} positioning with ${details.archetype_description.charAt(0).toLowerCase()}${details.archetype_description.slice(1)}`,
+    likely_monetisation_style: pricingStrategy,
+    recommended_next_step: lowestScore === 'consistency'
+      ? 'Build a simple two-week posting cadence before adding new content ideas.'
+      : lowestScore === 'monetisation'
+        ? 'Define your first paid pathway from discovery content to premium offer.'
+        : 'Clarify your niche promise across bio, pinned content, and first three recurring formats.',
+  };
+}
+
+function recommendedActions(scores: ScoreBreakdown, topVerticals: { name: ContentVertical; rationale: string }[]): NonNullable<ReportData['recommended_actions']> {
+  const actions = [
+    {
+      title: 'Improve posting consistency',
+      rationale: scores.consistency >= 70
+        ? 'You have a useful consistency signal; protect it with a realistic weekly system.'
+        : 'A clearer cadence will make it easier to learn what your audience responds to.',
+    },
+    {
+      title: 'Define your niche',
+      rationale: scores.brand_clarity >= 70
+        ? 'Your positioning already has shape; make it more obvious in your profile and recurring content.'
+        : 'A tighter niche will help fans understand why to follow, subscribe, and return.',
+    },
+    {
+      title: 'Expand your content mix',
+      rationale: topVerticals[0]
+        ? `${topVerticals[0].name} should be tested as a repeatable lane before adding too many formats.`
+        : 'Test a small set of formats before committing to a broader production plan.',
+    },
+    {
+      title: 'Improve monetisation approach',
+      rationale: scores.monetisation >= 70
+        ? 'Your offer potential is strong enough to package more deliberately.'
+        : 'A simple offer ladder can turn attention into a clearer revenue path.',
+    },
+  ];
+
+  return actions;
+}
+
+function creatorAgencyOpportunity(
+  scores: ReportData['internal_agency_scores'],
+  recommendation: ReportData['agency_recommendation'],
+  readiness: ManagementReadiness
+): NonNullable<ReportData['creator_agency_opportunity']> {
+  const opportunity = scores.agency_opportunity ?? 0;
+  const coachability = scores.coachability ?? 0;
+
+  return {
+    growth_potential: opportunity >= 70
+      ? 'Your profile shows strong growth potential if positioning, content cadence, and monetisation are developed together.'
+      : opportunity >= 50
+        ? 'Your profile shows developing growth potential, with the biggest upside likely coming from clearer systems and offer structure.'
+        : 'Your profile has early growth potential that would benefit from stronger foundations before scaling.',
+    coaching_suitability: coachability >= 70
+      ? 'You appear well suited to coaching because your answers show openness to structured improvement and experimentation.'
+      : coachability >= 50
+        ? 'You may benefit from focused coaching around the few decisions most likely to improve traction.'
+        : 'Coaching may be most useful once you have a clearer goal, cadence, and preferred content direction.',
+    recommended_support: readiness === 'Scale Candidate' || recommendation.agency_priority === 'high'
+      ? 'A strategy call is recommended to review whether management support could accelerate your next stage.'
+      : 'A light strategy review is recommended first, focused on niche, consistency, and monetisation foundations.',
+  };
+}
+
 export function scoreAssessment(r: AssessmentResponses): ScoringResult {
   const creator_dna = computeCreatorDNA(r);
   const brand_clarity = computeBrandClarity(r);
@@ -557,6 +685,7 @@ export function scoreAssessment(r: AssessmentResponses): ScoringResult {
   const pricing_strategy = r.audience_target === 'whales'
     ? 'Premium positioning appears worth exploring: selective access, high-touch fan journeys, and carefully packaged premium offers may be stronger than broad low-ticket volume.'
     : 'A volume-led pathway appears worth exploring: low-friction access, recurring fan engagement, and staged upsell opportunities may help turn discovery into revenue.';
+  const why = whyThisResult(r, fullScores, archetype, top_verticals);
 
   return {
     scores: fullScores,
@@ -576,7 +705,16 @@ export function scoreAssessment(r: AssessmentResponses): ScoringResult {
       { tool: 'Lightweight design tools', purpose: 'Useful for keeping promotional assets consistent as your positioning sharpens.' },
     ],
     day_90_plan: generatePlan(management_readiness, top_verticals),
-    why_this_result: whyThisResult(r, fullScores, archetype, top_verticals),
+    executive_summary: executiveSummary(fullScores, archetype, details, top_verticals, pricing_strategy),
+    score_interpretations: scoreInterpretations(fullScores, why),
+    creator_archetype_summary: {
+      primary_archetype: archetype,
+      secondary_archetype: selectedArchetypes(r).find(value => value !== archetype) ?? top_verticals[0]?.name ?? 'Audience Relationship Builder',
+      fit_explanation: `This fit is based on your strongest self-described signals, your comfort level, your chosen content boundaries, and the content lanes most likely to support ${archetype} positioning.`,
+    },
+    recommended_actions: recommendedActions(fullScores, top_verticals),
+    creator_agency_opportunity: creatorAgencyOpportunity(agencyScores, recommendation, management_readiness),
+    why_this_result: why,
     internal_agency_scores: agencyScores,
     agency_recommendation: recommendation,
     report_tier: 'free',
