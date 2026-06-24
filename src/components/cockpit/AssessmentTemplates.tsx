@@ -1100,7 +1100,11 @@ export function AssessmentTemplates() {
               <input value={inviteForm.creatorName} onChange={e => setInviteForm(current => ({ ...current, creatorName: e.target.value }))} placeholder="Creator name" required className="field-control" />
               <input type="email" value={inviteForm.creatorEmail} onChange={e => setInviteForm(current => ({ ...current, creatorEmail: e.target.value }))} placeholder="Email address" required className="field-control" />
             </div>
-            <input type="date" value={inviteForm.expiresAt} onChange={e => setInviteForm(current => ({ ...current, expiresAt: e.target.value }))} className="field-control" aria-label="Optional expiry date" />
+            <label className="grid gap-1 text-sm font-medium text-charcoal">
+              <span>Expiry date</span>
+              <input type="date" value={inviteForm.expiresAt} onChange={e => setInviteForm(current => ({ ...current, expiresAt: e.target.value }))} className="field-control" />
+              <span className="text-xs font-normal text-charcoal-2">Leave blank for no expiry. Created date is recorded automatically.</span>
+            </label>
             <textarea value={inviteForm.notes} onChange={e => setInviteForm(current => ({ ...current, notes: e.target.value }))} rows={3} placeholder="Optional notes/internal label" className="field-control resize-none" />
             <button type="submit" disabled={saving || !selectedInviteTemplate} title={!selectedInviteTemplate ? 'Choose a template first.' : saving ? 'Invite creation already in progress.' : undefined} className="btn-primary">{saving ? 'Creating...' : 'Create Invite Link'}</button>
           </form>
