@@ -9,10 +9,9 @@ const MAGIC_LINK_SUCCESS_MESSAGE = 'Magic link sent. Check your inbox.';
 const LOGIN_ERROR_MESSAGE = 'Unable to send a magic link. Check the email address or contact the site owner for access.';
 const EMPTY_INVITE_REQUEST = { name: '', email: '', onlyfansHandle: '' };
 const INVITE_BENEFITS = [
-  'Identify your content niche fit',
-  'Understand your business readiness and coachability',
+  'Discover your strongest niche opportunities',
+  'Understand your growth potential',
   'Receive a personalised creator report',
-  'Discover mentoring opportunities matched to your growth potential',
 ];
 const CAPABILITY_CHIPS = ['Find Your Content Niche', 'Business Mentoring', 'Scale & Systems'];
 
@@ -92,42 +91,52 @@ export function AuthGate({ children }: { children: ReactNode }) {
 
   if (!session) {
     return (
-      <div className="min-h-screen bg-surface-2 px-4 py-5 text-charcoal sm:px-6 lg:px-8">
-        <main className="mx-auto flex min-h-[calc(100vh-2.5rem)] w-full max-w-5xl flex-col justify-center">
-          <section className="rounded-[2rem] border border-white/10 bg-surface/80 p-5 shadow-2xl shadow-black/25 backdrop-blur sm:p-7 lg:p-8">
-            <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-accent text-sm font-black text-white shadow-lg shadow-orange-950/40">
-                FYV
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-charcoal">Find Your Vertical</p>
-                <p className="text-xs text-charcoal-2">Creator Growth Framework</p>
-              </div>
-            </div>
-
-            <h1 className="mt-6 max-w-4xl text-4xl font-bold leading-tight tracking-normal text-charcoal sm:text-5xl lg:text-6xl">
-              Discover the creator niche you're most likely to succeed in.
-            </h1>
-            <p className="mt-4 max-w-3xl text-base leading-7 text-slate-300 sm:text-lg">
-              Find Your Vertical reviews your content niche fit, business readiness, coachability, and growth potential so we can match you with the assessment, report, and mentoring opportunities that make sense for your next stage.
-            </p>
-
-            <div className="mt-5 grid gap-3 sm:grid-cols-3">
-              {CAPABILITY_CHIPS.map(item => (
-                <div key={item} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-slate-100">
-                  {item}
+      <div className="min-h-screen bg-surface-2 px-4 py-4 text-charcoal sm:px-6 lg:px-8">
+        <main className="mx-auto flex min-h-[calc(100vh-2rem)] w-full max-w-5xl items-center">
+          <section className="grid w-full gap-5 rounded-3xl border border-white/10 bg-surface/85 p-4 shadow-2xl shadow-black/25 backdrop-blur sm:p-5 lg:grid-cols-[0.9fr_1.1fr] lg:p-6">
+            <div className="flex flex-col justify-center">
+              <div className="flex items-center gap-3">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent text-sm font-black text-white shadow-lg shadow-orange-950/40">
+                  FYV
                 </div>
-              ))}
+                <div>
+                  <p className="text-lg font-bold leading-tight text-charcoal">Find Your Vertical</p>
+                  <p className="text-sm text-charcoal-2">Creator Growth Framework</p>
+                </div>
+              </div>
+
+              <h1 className="mt-5 max-w-xl text-2xl font-bold leading-tight tracking-normal text-charcoal sm:text-3xl">
+                Find the creator niche you're most likely to succeed in.
+              </h1>
+              <div className="mt-4 max-w-xl space-y-3 text-sm leading-6 text-slate-300">
+                <p>
+                  Find Your Vertical helps creators identify their strongest content opportunities, business readiness, growth potential, and monetisation pathways.
+                </p>
+                <p>
+                  Complete an assessment, receive a personalised report, and discover opportunities to grow faster.
+                </p>
+              </div>
+
+              <div className="mt-5 flex flex-wrap gap-2">
+                {CAPABILITY_CHIPS.map(item => (
+                  <span key={item} className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold text-slate-100">
+                    {item}
+                  </span>
+                ))}
+              </div>
             </div>
 
-            <div className="mt-6 grid gap-5 lg:grid-cols-[minmax(0,0.9fr)_minmax(360px,1fr)] lg:items-start">
-              <div className="rounded-3xl border border-accent/30 bg-accent/10 p-4 shadow-xl shadow-orange-950/20">
-                <p className="text-xs font-semibold uppercase tracking-wide text-accent">Invite request</p>
-                <h2 className="mt-2 text-2xl font-bold leading-tight text-charcoal">Want personalised creator guidance?</h2>
-                <p className="mt-2 text-sm leading-6 text-slate-300">
-                  Request an invitation and we'll review your profile for access to the Find Your Vertical assessment and creator growth programme.
-                </p>
-                <ul className="mt-4 grid gap-2 text-sm leading-5 text-slate-200">
+            <div className="grid gap-3">
+              <form onSubmit={handleInviteRequest} className="grid gap-3 rounded-2xl border border-accent/35 bg-white/[0.055] p-4 shadow-xl shadow-orange-950/20 sm:p-5">
+                <div>
+                  <h2 className="text-xl font-bold leading-tight text-charcoal">Get Your Assessment Invite</h2>
+                  <p className="mt-1 text-sm font-semibold text-accent">Thinking about becoming a creator?</p>
+                  <p className="mt-2 text-sm leading-5 text-slate-300">
+                    Request an invitation to complete the Find Your Vertical assessment.
+                  </p>
+                </div>
+
+                <ul className="grid gap-1.5 text-sm leading-5 text-slate-200">
                   {INVITE_BENEFITS.map(benefit => (
                     <li key={benefit} className="flex gap-2.5">
                       <span aria-hidden="true" className="text-success">✓</span>
@@ -135,9 +144,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
                     </li>
                   ))}
                 </ul>
-              </div>
 
-              <form onSubmit={handleInviteRequest} className="grid gap-3 rounded-3xl border border-white/10 bg-white/[0.04] p-4">
                 <div className="grid gap-3 sm:grid-cols-2">
                   <input
                     value={inviteRequest.name}
@@ -173,45 +180,44 @@ export function AuthGate({ children }: { children: ReactNode }) {
                   </p>
                 )}
               </form>
-            </div>
 
-            <div className="my-5 h-px bg-white/10" />
-
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3.5">
-              <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
-                <div>
-                <h2 className="text-base font-bold text-charcoal">Already invited?</h2>
-                <p className="mt-1 text-sm text-charcoal-2">Sign in with your invited email address.</p>
+              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
+                  <div>
+                    <h2 className="text-base font-bold text-charcoal">Already Invited?</h2>
+                    <p className="mt-1 text-sm text-charcoal-2">Enter the email address that received your invitation.</p>
+                  </div>
+                  <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold text-accent">Admin Login</span>
                 </div>
+                <form onSubmit={handleLogin} className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_180px]">
+                  <input
+                    type="email"
+                    name="email"
+                    autoComplete="email"
+                    spellCheck={false}
+                    value={email}
+                    onChange={e => {
+                      setEmail(e.target.value);
+                      setMessage(null);
+                      setMessageKind(null);
+                    }}
+                    placeholder="Email Address"
+                    required
+                    className="field-control w-full"
+                  />
+                  <button type="submit" disabled={sending} className="btn-secondary w-full">
+                    {sending ? 'Sending...' : messageKind === 'success' ? 'Send Again' : 'Send Magic Link'}
+                  </button>
+                </form>
+                {message && (
+                  <p
+                    className={`mt-3 text-sm ${messageKind === 'error' ? 'text-pink' : 'text-success'}`}
+                    role={messageKind === 'error' ? 'alert' : 'status'}
+                  >
+                    {message}
+                  </p>
+                )}
               </div>
-              <form onSubmit={handleLogin} className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_220px]">
-                <input
-                  type="email"
-                  name="email"
-                  autoComplete="email"
-                  spellCheck={false}
-                  value={email}
-                  onChange={e => {
-                    setEmail(e.target.value);
-                    setMessage(null);
-                    setMessageKind(null);
-                  }}
-                  placeholder="you@agency.com"
-                  required
-                  className="field-control w-full"
-                />
-                <button type="submit" disabled={sending} className="btn-secondary w-full">
-                  {sending ? 'Sending...' : messageKind === 'success' ? 'Send Again' : 'Send Magic Link'}
-                </button>
-              </form>
-              {message && (
-                <p
-                  className={`mt-3 text-sm ${messageKind === 'error' ? 'text-pink' : 'text-success'}`}
-                  role={messageKind === 'error' ? 'alert' : 'status'}
-                >
-                  {message}
-                </p>
-              )}
             </div>
           </section>
         </main>
