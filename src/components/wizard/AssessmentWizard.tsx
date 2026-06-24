@@ -466,6 +466,17 @@ function refFromLocation(routerSearch: string): string {
   return new URLSearchParams(hashSearch).get('ref') ?? '';
 }
 
+function emailFromLocation(routerSearch: string): string {
+  const routerEmail = new URLSearchParams(routerSearch).get('email');
+  if (routerEmail) return routerEmail;
+
+  const pageEmail = new URLSearchParams(window.location.search).get('email');
+  if (pageEmail) return pageEmail;
+
+  const [, hashSearch = ''] = window.location.hash.split('?');
+  return new URLSearchParams(hashSearch).get('email') ?? '';
+}
+
 function normalizeEmailInput(value: string): string {
   return value.trim().toLowerCase();
 }
@@ -507,11 +518,25 @@ function AssessmentAccessMessage({ message }: { message: string }) {
   );
 }
 
+function PublicBrandHeader({ eyebrow }: { eyebrow?: string }) {
+  return (
+    <div className="text-center">
+      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-accent text-base font-black tracking-wide text-white shadow-lg shadow-orange-200/50">
+        FYV
+      </div>
+      {eyebrow && <p className="mt-5 text-xs font-semibold uppercase tracking-[0.18em] text-accent">{eyebrow}</p>}
+      <h1 className="mt-3 font-display text-3xl font-bold text-gray-900">Find Your Vertical</h1>
+      <p className="mt-1 text-sm font-semibold text-gray-500">Modelling Creator Talent</p>
+    </div>
+  );
+}
+
 export function AssessmentWizard({ templateSlug }: { templateSlug?: string }) {
   const params = useParams<{ templateSlug?: string }>();
   const location = useLocation();
   const resolvedTemplateSlug = templateSlug ?? params.templateSlug;
   const inviteRef = refFromLocation(location.search);
+  const inviteEmailParam = emailFromLocation(location.search);
   const [step, setStep] = useState(0);
   const [data, setData] = useState<AssessmentResponses>(INITIAL);
   const [template, setTemplate] = useState<CreatorAssessmentRuntimeTemplate | null>(null);
@@ -536,7 +561,7 @@ export function AssessmentWizard({ templateSlug }: { templateSlug?: string }) {
     setInviteAccessError('');
     setInviteLink(null);
     setVerifiedEmail('');
-    setVerificationEmail('');
+    setVerificationEmail(normalizeEmailInput(inviteEmailParam));
     setVerificationError('');
 
     const load = async () => {
@@ -586,7 +611,10 @@ export function AssessmentWizard({ templateSlug }: { templateSlug?: string }) {
         }
 
         setData(current => {
-          const next = { ...current };
+          const next: AssessmentResponses = {
+            ...current,
+            ...(inviteEmailParam ? { email: normalizeEmailInput(inviteEmailParam) } : {}),
+          };
           for (const question of nextTemplate.questions) {
             if (next[question.response_key] === undefined) {
               next[question.response_key] = defaultValue(question);
@@ -615,7 +643,7 @@ export function AssessmentWizard({ templateSlug }: { templateSlug?: string }) {
     return () => {
       mounted = false;
     };
-  }, [resolvedTemplateSlug, inviteRef]);
+  }, [resolvedTemplateSlug, inviteRef, inviteEmailParam]);
 
   useEffect(() => {
     if (!submittedReportSlug) return;
@@ -642,7 +670,10 @@ export function AssessmentWizard({ templateSlug }: { templateSlug?: string }) {
 
   const verifyInviteEmail = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!inviteLink) return;
+    if (!inviteLink) {
+      setVerificationError(INVALID_INVITE_MESSAGE);
+      return;
+    }
 
     const enteredEmail = normalizeEmailInput(verificationEmail);
     if (!enteredEmail) {
@@ -870,7 +901,7 @@ export function AssessmentWizard({ templateSlug }: { templateSlug?: string }) {
         model_name: textValue(data.model_name),
         city: textValue(data.city),
         country: textValue(data.country),
-        email: normalizeEmailInput(verifiedEmail || textValue(data.email)),
+        email: normalizeEmailInput(textValue(data.email) || verifiedEmail),
         consent: !data.mailing_list_opt_out,
       };
       if (!sanitizedData.audience_target) sanitizedData.audience_target = 'masses';
@@ -903,7 +934,7 @@ export function AssessmentWizard({ templateSlug }: { templateSlug?: string }) {
   const renderDetailsStep = () => (
     <div className="mx-auto max-w-2xl space-y-6 animate-in">
       <div className="space-y-3">
-        <h2 className="font-display text-xl font-semibold">Find Your Vertical â€“ Modelling Creator Talent</h2>
+        <h2 className="font-display text-xl font-semibold">Find Your Vertical - Modelling Creator Talent</h2>
         <p className="text-sm leading-6 text-gray-600">
           Find Your Vertical is designed to identify your strongest creator positioning, content opportunities, monetisation potential, and long-term growth paths.
         </p>
@@ -979,8 +1010,7 @@ export function AssessmentWizard({ templateSlug }: { templateSlug?: string }) {
           value={String(data.email ?? '')}
           onChange={e => update('email', e.target.value)}
           placeholder="Email"
-          readOnly={Boolean(verifiedEmail)}
-          className="w-full bg-surface-2 border border-gray-300 rounded-lg px-4 py-3 text-gray-900 placeholder-gray-500 focus:border-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/30 sm:col-span-2 read-only:bg-gray-100"
+          className="w-full bg-surface-2 border border-gray-300 rounded-lg px-4 py-3 text-gray-900 placeholder-gray-500 focus:border-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/30 sm:col-span-2"
         />
       </div>
 
@@ -1000,8 +1030,7 @@ export function AssessmentWizard({ templateSlug }: { templateSlug?: string }) {
     <div className="min-h-[100dvh] w-full px-4 py-10 sm:px-6">
       <div className="mx-auto flex min-h-[calc(100dvh-5rem)] max-w-lg items-center">
         <div className="w-full rounded-lg border border-gray-200 bg-white p-6 shadow-sm sm:p-8">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">Invite verification</p>
-          <h1 className="mt-3 font-display text-3xl font-bold text-gray-900">Find Your Vertical</h1>
+          <PublicBrandHeader eyebrow="Invite verification" />
           <p className="mt-3 text-sm leading-6 text-gray-600">
             Enter the email address this invite was sent to before starting your assessment.
           </p>
@@ -1268,8 +1297,7 @@ export function AssessmentWizard({ templateSlug }: { templateSlug?: string }) {
     <div className="min-h-[100dvh] w-full overflow-x-hidden px-4 py-8 sm:px-6 sm:py-10">
       <div className="mx-auto w-full max-w-2xl">
         <div className="text-center mb-6 sm:mb-10">
-          <h1 className="font-display text-3xl font-bold mb-2">Find Your Vertical</h1>
-          <p className="text-gray-500 text-sm">Creator Vertical Assessment</p>
+          <PublicBrandHeader />
           {inviteLink && (
             <p className="mt-2 text-xs text-accent">Invite: {inviteLink.creator_name}</p>
           )}
