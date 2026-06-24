@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'rea
 import { useLocation } from 'react-router-dom';
 import { createCreatorInviteRequest } from '@/lib/creators-api';
 import { signInWithOtp, supabase } from '@/lib/supabase';
+import brandLogo from '@/assets/find-your-vertical-logo.png';
 import type { Session } from '@supabase/supabase-js';
 
 type AuthMessageKind = 'success' | 'error';
@@ -103,10 +104,12 @@ export function AuthGate({ children }: { children: ReactNode }) {
           <section className="grid w-full gap-5 rounded-3xl border border-white/10 bg-surface/85 p-4 shadow-2xl shadow-black/25 backdrop-blur sm:p-5 lg:grid-cols-[0.9fr_1.1fr] lg:p-6">
             <div className="flex flex-col justify-center">
               <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent text-sm font-black text-white shadow-lg shadow-orange-950/40">
-                  FYV
-                </div>
-                <div>
+                <img
+                  src={brandLogo}
+                  alt="Find Your Vertical"
+                  className="h-24 w-52 rounded-lg object-contain shadow-lg shadow-orange-950/40"
+                />
+                <div className="sr-only">
                   <p className="text-lg font-bold leading-tight text-charcoal">Find Your Vertical</p>
                   <p className="text-sm text-charcoal-2">Creator Growth Framework</p>
                 </div>

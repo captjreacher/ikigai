@@ -1,5 +1,6 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { signOut } from '@/lib/supabase';
+import brandLogo from '@/assets/find-your-vertical-logo.png';
 
 const NAV_ITEMS = [
   { label: 'Dashboard', to: '/cockpit', icon: 'D', end: true },
@@ -21,10 +22,12 @@ export function CockpitLayout() {
       <aside className="flex w-full shrink-0 flex-col border-b border-white/10 bg-[#0a1020]/95 text-white backdrop-blur lg:w-64 lg:border-b-0 lg:border-r lg:border-white/10">
         <div className="flex items-start justify-between gap-3 border-b border-white/10 p-4 lg:block lg:p-5">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-accent text-sm font-black tracking-wide text-white shadow-lg shadow-orange-950/40">
-              FYV
-            </div>
-            <div>
+            <img
+              src={brandLogo}
+              alt="Find Your Vertical"
+              className="h-16 w-36 shrink-0 rounded-lg object-contain shadow-lg shadow-orange-950/40"
+            />
+            <div className="sr-only">
               <h1 className="text-base font-bold tracking-normal text-white">Find Your Vertical</h1>
               <p className="mt-0.5 text-xs text-slate-400">Modelling Creator Talent</p>
             </div>

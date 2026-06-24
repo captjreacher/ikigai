@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import brandLogo from '@/assets/find-your-vertical-logo.png';
 import {
   getAssessmentInviteLink,
   getAssessmentTemplateBySlug,
@@ -524,9 +525,11 @@ function AssessmentAccessMessage({ message }: { message: string }) {
 function PublicBrandHeader({ eyebrow }: { eyebrow?: string }) {
   return (
     <div className="text-center">
-      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-accent text-base font-black tracking-wide text-white shadow-lg shadow-orange-200/50">
-        FYV
-      </div>
+      <img
+        src={brandLogo}
+        alt="Find Your Vertical"
+        className="mx-auto h-28 w-64 rounded-lg object-contain shadow-lg shadow-orange-200/50"
+      />
       {eyebrow && <p className="mt-5 text-xs font-semibold uppercase tracking-[0.18em] text-accent">{eyebrow}</p>}
       <h1 className="mt-3 font-display text-3xl font-bold text-gray-900">Find Your Vertical</h1>
       <p className="mt-1 text-sm font-semibold text-gray-500">Modelling Creator Talent</p>
