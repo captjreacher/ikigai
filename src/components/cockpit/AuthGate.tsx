@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { useLocation } from 'react-router-dom';
 import { createCreatorInviteRequest } from '@/lib/creators-api';
 import { signInWithOtp, supabase } from '@/lib/supabase';
@@ -27,6 +27,8 @@ export function AuthGate({ children }: { children: ReactNode }) {
   const [requestingInvite, setRequestingInvite] = useState(false);
   const [inviteMessage, setInviteMessage] = useState<string | null>(null);
   const [inviteMessageKind, setInviteMessageKind] = useState<AuthMessageKind | null>(null);
+  const loginSectionRef = useRef<HTMLDivElement | null>(null);
+  const loginEmailRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -79,6 +81,11 @@ export function AuthGate({ children }: { children: ReactNode }) {
     } finally {
       setRequestingInvite(false);
     }
+  };
+
+  const handleAdminLoginClick = () => {
+    loginSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    window.setTimeout(() => loginEmailRef.current?.focus(), 250);
   };
 
   if (loading) {
@@ -181,16 +188,23 @@ export function AuthGate({ children }: { children: ReactNode }) {
                 )}
               </form>
 
-              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+              <div ref={loginSectionRef} className="rounded-2xl border border-white/10 bg-white/[0.03] p-3.5">
                 <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
                   <div>
                     <h2 className="text-base font-bold text-charcoal">Already Invited?</h2>
                     <p className="mt-1 text-sm text-charcoal-2">Enter the email address that received your invitation.</p>
                   </div>
-                  <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold text-accent">Admin Login</span>
+                  <button
+                    type="button"
+                    onClick={handleAdminLoginClick}
+                    className="rounded-full border border-accent/30 bg-accent/10 px-3 py-1 text-xs font-semibold text-accent transition-colors hover:border-accent/60 hover:bg-accent/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/30"
+                  >
+                    Admin / Invite Login
+                  </button>
                 </div>
                 <form onSubmit={handleLogin} className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_180px]">
                   <input
+                    ref={loginEmailRef}
                     type="email"
                     name="email"
                     autoComplete="email"
