@@ -209,6 +209,8 @@ export interface CreatorAssessmentInviteLink {
   creator_name: string;
   creator_email: string | null;
   notes: string | null;
+  status?: 'Created' | 'Sent' | 'Opened' | 'Email Verified' | 'Started' | 'Completed' | 'Expired' | 'Revoked';
+  status_updated_at?: string | null;
   is_active: boolean;
   created_at: string;
   expires_at: string | null;

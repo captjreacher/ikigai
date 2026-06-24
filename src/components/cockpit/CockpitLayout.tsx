@@ -5,6 +5,7 @@ const NAV_ITEMS = [
   { label: 'Dashboard', to: '/cockpit', icon: 'D', end: true },
   { label: 'Creators', to: '/cockpit/creators', icon: 'C' },
   { label: 'Assessment Templates', to: '/cockpit/settings/assessment-templates', icon: 'T' },
+  { label: 'Question Bank', to: '/cockpit/settings/question-bank', icon: 'Q' },
 ];
 
 export function CockpitLayout() {

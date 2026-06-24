@@ -104,6 +104,8 @@ export default function App() {
             <Route path="creators" element={<CreatorPipeline />} />
             <Route path="creators/:profileId" element={<CreatorProfileView />} />
             <Route path="settings/assessment-templates" element={<AssessmentTemplates />} />
+            <Route path="settings/assessment-templates/:templateId" element={<AssessmentTemplates />} />
+            <Route path="settings/question-bank" element={<AssessmentTemplates />} />
           </Route>
           <Route path="*" element={<Navigate to="/cockpit" replace />} />
         </Routes>

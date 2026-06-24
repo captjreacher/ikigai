@@ -89,6 +89,14 @@ function slugify(value: string): string {
     .replace(/^-+|-+$/g, '') || 'template';
 }
 
+function normalizeQuestionKey(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+}
+
 function uuidOrNull(value: string | null | undefined): string | null {
   return value && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
     ? value
@@ -848,13 +856,16 @@ export async function createQuestion(input: {
 
 export async function updateQuestion(
   id: string,
-  input: Pick<CreatorQuestion, 'question_text' | 'help_text'> & Pick<Partial<CreatorQuestion>, 'options' | 'section' | 'scoring_dimension' | 'parent_question_key' | 'show_when_value' | 'show_when_operator'>
+  input: Pick<CreatorQuestion, 'question_text' | 'help_text'> & Pick<Partial<CreatorQuestion>, 'question_key' | 'response_key' | 'question_type' | 'options' | 'section' | 'scoring_dimension' | 'parent_question_key' | 'show_when_value' | 'show_when_operator'>
 ): Promise<CreatorQuestion> {
   const { data, error } = await supabase
     .from('creator_question_bank')
     .update({
+      ...(input.question_key !== undefined ? { question_key: normalizeQuestionKey(input.question_key) } : {}),
+      ...(input.response_key !== undefined ? { response_key: normalizeQuestionKey(input.response_key) } : {}),
       question_text: input.question_text,
       help_text: input.help_text,
+      ...(input.question_type !== undefined ? { question_type: input.question_type } : {}),
       ...(input.section !== undefined ? { section: input.section } : {}),
       ...(input.scoring_dimension !== undefined ? { scoring_dimension: input.scoring_dimension } : {}),
       ...(input.parent_question_key !== undefined ? { parent_question_key: input.parent_question_key } : {}),
@@ -989,11 +1000,17 @@ export async function saveTemplateQuestions(
   templateId: string,
   questions: Array<Pick<CreatorAssessmentQuestion, 'id' | 'is_included' | 'sort_order'>>
 ): Promise<void> {
+  const { error: deleteError } = await supabase
+    .from('creator_assessment_template_questions')
+    .delete()
+    .eq('template_id', templateId);
+
+  if (deleteError) throw new Error(`Failed to clear template questions: ${deleteError.message}`);
   if (questions.length === 0) return;
 
   const { error } = await supabase
     .from('creator_assessment_template_questions')
-    .upsert(questions.map(question => ({
+    .insert(questions.map(question => ({
       template_id: templateId,
       question_id: question.id,
       is_included: question.is_included,
@@ -1137,6 +1154,7 @@ export async function createAssessmentInviteLink(input: {
   creatorName: string;
   creatorEmail?: string | null;
   notes?: string | null;
+  expiresAt?: string | null;
 }): Promise<CreatorAssessmentInviteLink> {
   const { data, error } = await (supabase as any)
     .from('creator_assessment_links')
@@ -1146,7 +1164,10 @@ export async function createAssessmentInviteLink(input: {
       creator_name: input.creatorName.trim(),
       creator_email: normalizeEmail(input.creatorEmail),
       notes: normalizeNullableText(input.notes),
+      status: 'Created',
+      status_updated_at: new Date().toISOString(),
       is_active: true,
+      expires_at: input.expiresAt || null,
     })
     .select()
     .single();
@@ -1276,6 +1297,51 @@ export async function setDefaultTemplate(templateId: string): Promise<void> {
     .eq('id', templateId);
 
   if (error) throw new Error(`Failed to set default template: ${error.message}`);
+}
+
+export async function getTemplateDeleteEligibility(templateId: string): Promise<{ canDelete: boolean; reason?: string }> {
+  const { data: template, error: templateError } = await supabase
+    .from('creator_assessment_templates')
+    .select('is_default')
+    .eq('id', templateId)
+    .single();
+
+  if (templateError) throw new Error(`Failed to load template delete safety: ${templateError.message}`);
+  if (template?.is_default) return { canDelete: false, reason: 'Default templates cannot be deleted.' };
+
+  const { count: assessmentCount, error: assessmentError } = await supabase
+    .from('creator_assessments')
+    .select('*', { count: 'exact', head: true })
+    .eq('template_id', templateId);
+
+  if (assessmentError) throw new Error(`Failed to check template assessments: ${assessmentError.message}`);
+  if ((assessmentCount ?? 0) > 0) {
+    return { canDelete: false, reason: `Cannot delete because ${assessmentCount} assessment${assessmentCount === 1 ? '' : 's'} use this template.` };
+  }
+
+  const { count: inviteCount, error: inviteError } = await (supabase as any)
+    .from('creator_assessment_links')
+    .select('*', { count: 'exact', head: true })
+    .eq('template_id', templateId);
+
+  if (inviteError) throw new Error(`Failed to check template invites: ${inviteError.message}`);
+  if ((inviteCount ?? 0) > 0) {
+    return { canDelete: false, reason: `Cannot delete because ${inviteCount} invite link${inviteCount === 1 ? '' : 's'} use this template. Archive it instead.` };
+  }
+
+  return { canDelete: true };
+}
+
+export async function deleteAssessmentTemplate(templateId: string): Promise<void> {
+  const eligibility = await getTemplateDeleteEligibility(templateId);
+  if (!eligibility.canDelete) throw new Error(eligibility.reason ?? 'Template cannot be deleted safely.');
+
+  const { error } = await supabase
+    .from('creator_assessment_templates')
+    .delete()
+    .eq('id', templateId);
+
+  if (error) throw new Error(`Failed to delete template: ${error.message}`);
 }
 
 // ── Dashboard Metrics ──
