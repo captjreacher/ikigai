@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import {
   getAssessmentInviteLink,
@@ -55,11 +55,12 @@ const SECTION_DESCRIPTIONS: Record<string, string> = {
   'Options for the Future': "Share where you'd like your creator journey to go and how success looks for you.",
 };
 const INVITE_ONLY_MODE = true;
-const BUILD_MARKER = 'fyv-invite-fix-20260624';
+const BUILD_MARKER = 'fyv-details-fix-20260624';
 const INVALID_INVITE_MESSAGE = 'Invite not found';
 const EMAIL_MISMATCH_MESSAGE = 'Email does not match invite';
 const EXPIRED_INVITE_MESSAGE = 'Invite expired';
 const INACTIVE_INVITE_MESSAGE = 'Invite inactive';
+const DETAIL_FIELD_CLASS = 'w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-gray-900 placeholder-gray-500 caret-accent shadow-sm focus:border-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/30';
 
 const FALLBACK_TEMPLATE: CreatorAssessmentRuntimeTemplate = {
   id: 'legacy-fallback',
@@ -553,6 +554,7 @@ export function AssessmentWizard({ templateSlug }: { templateSlug?: string }) {
   const [submittedReportSlug, setSubmittedReportSlug] = useState('');
   const [redirectCountdown, setRedirectCountdown] = useState(3);
   const [error, setError] = useState('');
+  const detailsPrefillKeyRef = useRef<string | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -613,10 +615,14 @@ export function AssessmentWizard({ templateSlug }: { templateSlug?: string }) {
           }
         }
 
+        const detailsPrefillKey = `${resolvedTemplateSlug ?? ''}|${inviteRef}|${inviteEmailParam}`;
+        const shouldPrefillEmail = Boolean(inviteEmailParam && detailsPrefillKeyRef.current !== detailsPrefillKey);
+        if (shouldPrefillEmail) detailsPrefillKeyRef.current = detailsPrefillKey;
+
         setData(current => {
           const next: AssessmentResponses = {
             ...current,
-            ...(inviteEmailParam ? { email: normalizeEmailInput(inviteEmailParam) } : {}),
+            ...(shouldPrefillEmail ? { email: normalizeEmailInput(inviteEmailParam) } : {}),
           };
           for (const question of nextTemplate.questions) {
             if (next[question.response_key] === undefined) {
@@ -862,7 +868,7 @@ export function AssessmentWizard({ templateSlug }: { templateSlug?: string }) {
         && textValue(data.onlyfans_handle)
         && textValue(data.city)
         && textValue(data.country)
-        && (verifiedEmail || textValue(data.email))
+        && textValue(data.email)
       );
     }
 
@@ -883,7 +889,7 @@ export function AssessmentWizard({ templateSlug }: { templateSlug?: string }) {
     && textValue(data.onlyfans_handle)
     && textValue(data.city)
     && textValue(data.country)
-    && (verifiedEmail || textValue(data.email))
+    && textValue(data.email)
   );
 
   useEffect(() => {
@@ -909,7 +915,7 @@ export function AssessmentWizard({ templateSlug }: { templateSlug?: string }) {
         model_name: textValue(data.model_name),
         city: textValue(data.city),
         country: textValue(data.country),
-        email: normalizeEmailInput(textValue(data.email) || verifiedEmail),
+        email: normalizeEmailInput(textValue(data.email)),
         consent: !data.mailing_list_opt_out,
       };
       if (!sanitizedData.audience_target) sanitizedData.audience_target = 'masses';
@@ -962,7 +968,7 @@ export function AssessmentWizard({ templateSlug }: { templateSlug?: string }) {
           value={String(data.first_name ?? '')}
           onChange={e => update('first_name', e.target.value)}
           placeholder="First Name"
-          className="w-full bg-surface-2 border border-gray-300 rounded-lg px-4 py-3 text-gray-900 placeholder-gray-500 focus:border-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/30"
+          className={DETAIL_FIELD_CLASS}
         />
         <input
           type="text"
@@ -971,7 +977,7 @@ export function AssessmentWizard({ templateSlug }: { templateSlug?: string }) {
           value={String(data.last_name ?? '')}
           onChange={e => update('last_name', e.target.value)}
           placeholder="Last Name"
-          className="w-full bg-surface-2 border border-gray-300 rounded-lg px-4 py-3 text-gray-900 placeholder-gray-500 focus:border-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/30"
+          className={DETAIL_FIELD_CLASS}
         />
         <input
           type="text"
@@ -981,7 +987,7 @@ export function AssessmentWizard({ templateSlug }: { templateSlug?: string }) {
           value={String(data.onlyfans_handle ?? '')}
           onChange={e => update('onlyfans_handle', e.target.value)}
           placeholder="OnlyFans handle"
-          className="w-full bg-surface-2 border border-gray-300 rounded-lg px-4 py-3 text-gray-900 placeholder-gray-500 focus:border-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/30"
+          className={DETAIL_FIELD_CLASS}
         />
         <input
           type="text"
@@ -990,7 +996,7 @@ export function AssessmentWizard({ templateSlug }: { templateSlug?: string }) {
           value={String(data.model_name ?? '')}
           onChange={e => update('model_name', e.target.value)}
           placeholder="Model name / stage name (optional)"
-          className="w-full bg-surface-2 border border-gray-300 rounded-lg px-4 py-3 text-gray-900 placeholder-gray-500 focus:border-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/30"
+          className={DETAIL_FIELD_CLASS}
         />
         <input
           type="text"
@@ -999,7 +1005,7 @@ export function AssessmentWizard({ templateSlug }: { templateSlug?: string }) {
           value={String(data.city ?? '')}
           onChange={e => update('city', e.target.value)}
           placeholder="City"
-          className="w-full bg-surface-2 border border-gray-300 rounded-lg px-4 py-3 text-gray-900 placeholder-gray-500 focus:border-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/30"
+          className={DETAIL_FIELD_CLASS}
         />
         <input
           type="text"
@@ -1008,7 +1014,7 @@ export function AssessmentWizard({ templateSlug }: { templateSlug?: string }) {
           value={String(data.country ?? '')}
           onChange={e => update('country', e.target.value)}
           placeholder="Country"
-          className="w-full bg-surface-2 border border-gray-300 rounded-lg px-4 py-3 text-gray-900 placeholder-gray-500 focus:border-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/30"
+          className={DETAIL_FIELD_CLASS}
         />
         <input
           type="email"
@@ -1018,7 +1024,7 @@ export function AssessmentWizard({ templateSlug }: { templateSlug?: string }) {
           value={String(data.email ?? '')}
           onChange={e => update('email', e.target.value)}
           placeholder="Email"
-          className="w-full bg-surface-2 border border-gray-300 rounded-lg px-4 py-3 text-gray-900 placeholder-gray-500 focus:border-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/30 sm:col-span-2"
+          className={`${DETAIL_FIELD_CLASS} sm:col-span-2`}
         />
       </div>
 
