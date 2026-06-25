@@ -242,6 +242,8 @@ export function ReportPage() {
   }
 
   const d = report.report_json as unknown as ReportData;
+  const isFreeReport = (d.report_tier ?? 'free') === 'free';
+  const isAgencyReport = d.report_tier === 'agency';
   const publicScores = Object.fromEntries(
     Object.entries(d.scores).filter(([key]) => key !== 'agency_opportunity')
   ) as Record<string, number>;
@@ -362,6 +364,107 @@ export function ReportPage() {
       setPromptWorking(false);
     }
   };
+
+  if (isAgencyReport) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[#07101f] p-4 text-slate-200">
+        <h1 className="font-display text-2xl font-bold mb-4 text-white">Internal Report</h1>
+        <p className="max-w-md text-center text-sm leading-6 text-slate-300">
+          This agency report is available only inside the Find Your Vertical cockpit.
+        </p>
+      </div>
+    );
+  }
+
+  if (isFreeReport) {
+    const headlineScores = Object.entries(publicScores).slice(0, 4);
+    const topVertical = d.top_verticals[0];
+    const recommendation = guidance.executiveSummary.recommended_next_step;
+
+    return (
+      <div className="min-h-screen bg-[#07101f] text-slate-200">
+        <div className="border-b border-white/10 bg-[#0b1424]">
+          <div className="max-w-3xl mx-auto px-6 py-12">
+            <p className="mb-4 text-xs font-semibold uppercase tracking-[0.18em] text-accent">Find Your Vertical Free Report</p>
+            <h1 className="font-display text-4xl font-bold mb-3 text-white">{d.archetype}</h1>
+            <p className="max-w-xl text-base leading-7 text-slate-300">{d.free_report_summary || d.archetype_description}</p>
+            <div className="mt-4"><ConfidenceBadge confidence={d.result_confidence ?? 'Moderate'} /></div>
+          </div>
+        </div>
+
+        <div className="max-w-3xl mx-auto px-6 py-10 space-y-8">
+          <section className={REPORT_CARD_CLASS}>
+            <h2 className={`${REPORT_HEADING_CLASS} mb-4 text-xl`}>Creator DNA Snapshot</h2>
+            <div className="space-y-4">
+              {headlineScores.map(([key, value]) => (
+                <ScoreBar key={key} label={scoreLabelFor(key)} score={value} />
+              ))}
+            </div>
+          </section>
+
+          <section className={`${REPORT_CARD_CLASS} space-y-4`}>
+            <SummaryBlock title="Primary Archetype" text={guidance.archetypeSummary.primary_archetype} />
+            {topVertical && <SummaryBlock title="Top Vertical to Explore" text={`${topVertical.name}: ${topVertical.rationale}`} />}
+            <SummaryBlock title="First Recommendation" text={recommendation} />
+          </section>
+
+          <section className={`${REPORT_CARD_CLASS} space-y-4 border-accent/40 bg-accent/10`}>
+            <h2 className={`${REPORT_HEADING_CLASS} text-xl`}>Unlock the Full Creator DNA Report</h2>
+            <p className={REPORT_TEXT_CLASS}>
+              Your full report expands this snapshot into score reasoning, confidence explanation, content opportunities, monetisation pathway, and a 90-day action plan.
+            </p>
+            <button
+              onClick={() => startReportAction('discuss')}
+              className="inline-flex rounded-lg bg-accent px-5 py-2.5 text-sm font-semibold text-white hover:bg-accent-2"
+            >
+              Discuss My Full Report
+            </button>
+          </section>
+
+          <div className="border-t border-white/10 py-6">
+            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-center">
+              <button onClick={() => startReportAction('share')} className={REPORT_OUTLINE_BUTTON_CLASS}>
+                Share report
+              </button>
+              <button onClick={() => startReportAction('discuss')} className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white hover:bg-accent-2">
+                Book Strategy Call
+              </button>
+            </div>
+            {actionMessage && <p className="mt-3 text-center text-xs text-success">{actionMessage}</p>}
+            {actionError && <p className="mt-3 text-center text-xs text-pink">{actionError}</p>}
+          </div>
+        </div>
+
+        {pendingAction && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
+            <div className="w-full max-w-md rounded-xl border border-white/15 bg-[#101827] p-5 shadow-2xl">
+              <h2 className={`${REPORT_HEADING_CLASS} text-xl`}>{AGENCY_PROMPT_COPY}</h2>
+              <p className="mt-3 text-sm leading-6 text-slate-300">
+                A short Find Your Vertical strategy discussion can help translate your report into the most relevant next steps for your goals.
+              </p>
+              {actionError && <p className="mt-4 rounded-lg border border-pink/30 bg-pink/10 px-3 py-2 text-sm text-pink">{actionError}</p>}
+              <div className="mt-5 flex flex-col gap-3">
+                <button
+                  onClick={requestDiscussionAndRedirect}
+                  disabled={promptWorking}
+                  className="rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-white hover:bg-accent-2 disabled:opacity-50"
+                >
+                  {promptWorking ? 'Opening Calendar...' : "Yes, I'd Like to Discuss My Results"}
+                </button>
+                <button
+                  onClick={continueWithoutAgency}
+                  disabled={promptWorking}
+                  className={`${REPORT_OUTLINE_BUTTON_CLASS} disabled:opacity-50`}
+                >
+                  Not right now, continue
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#07101f] text-slate-200">

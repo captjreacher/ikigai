@@ -390,6 +390,14 @@ function normalizedConditionValue(value: unknown): string {
     .replace(/[^a-z0-9]+/g, '');
 }
 
+function normalizedConditionTargets(value: unknown): string[] {
+  if (Array.isArray(value)) return value.map(normalizedConditionValue).filter(Boolean);
+  return String(value ?? '')
+    .split(/[,\n|]+/)
+    .map(normalizedConditionValue)
+    .filter(Boolean);
+}
+
 function selectedLabels(question: CreatorAssessmentQuestion, selectedValue: unknown): string[] {
   const selected = Array.isArray(selectedValue) ? selectedValue : [selectedValue];
 
@@ -405,10 +413,19 @@ function conditionMatches(question: CreatorAssessmentQuestion, parent: CreatorAs
 
   const parentValue = data[parent.response_key];
   const target = normalizedConditionValue(question.show_when_value);
+  const targets = normalizedConditionTargets(question.show_when_value);
   const candidates = selectedLabels(parent, parentValue).map(normalizedConditionValue);
 
   if (question.show_when_operator === 'includes') {
     return candidates.some(candidate => candidate.includes(target) || target.includes(candidate));
+  }
+
+  if (question.show_when_operator === 'includes_any') {
+    return candidates.some(candidate => targets.some(item => candidate.includes(item) || item.includes(candidate)));
+  }
+
+  if (question.show_when_operator === 'not_equals') {
+    return candidates.every(candidate => !targets.includes(candidate));
   }
 
   return candidates.some(candidate => candidate === target);
@@ -426,7 +443,7 @@ function isVisible(
 }
 
 function defaultValue(question: CreatorAssessmentQuestion): unknown {
-  if (question.question_type === 'multi_choice') return [];
+  if (question.question_type === 'multi_choice' || question.question_type === 'scenario_ranking') return [];
   if (question.question_type === 'boolean') return false;
   if (question.question_type === 'scale') return Number(question.config.min ?? 1);
   return '';
@@ -943,7 +960,9 @@ export function AssessmentWizard({ templateSlug }: { templateSlug?: string }) {
               .map(question => ({ ...question, options: activeOptions(question) })),
           }
         : template;
-      const result = await submitAssessment(sanitizedData, visibleTemplate, inviteLink);
+      const result = await submitAssessment(sanitizedData, visibleTemplate, inviteLink, {
+        reportTier: inviteLink?.report_tier ?? 'free',
+      });
       void setAssessmentInviteStatus(inviteLink?.invite_code, 'Completed').catch(() => undefined);
       setSubmittedReportSlug(result.report.report_slug);
     } catch (e) {
@@ -1107,11 +1126,14 @@ export function AssessmentWizard({ templateSlug }: { templateSlug?: string }) {
         </label>
         {question.help_text && <p className="mb-4 max-w-2xl text-sm leading-6 text-slate-300">{question.help_text}</p>}
 
-        {question.question_type === 'multi_choice' && (
+        {(question.question_type === 'multi_choice' || question.question_type === 'scenario_ranking') && (
           <div className={question.section === 'Current Approach' || question.section === 'Options for the Future' ? 'grid max-w-xl grid-cols-1 gap-2 sm:grid-cols-2' : 'flex max-w-lg flex-wrap gap-2'}>
             {activeOptions(question).map(option => {
               const optionKey = optionValue(option);
               const selected = Array.isArray(value) && value.includes(optionKey);
+              const rank = question.question_type === 'scenario_ranking' && Array.isArray(value)
+                ? value.indexOf(optionKey) + 1
+                : 0;
               const limit = maxSelections(question);
               const atLimit = !selected && limit !== null && Array.isArray(value) && value.length >= limit;
               return (
@@ -1127,7 +1149,7 @@ export function AssessmentWizard({ templateSlug }: { templateSlug?: string }) {
                         : OPTION_IDLE_CLASS
                   }`}
                 >
-                  {optionLabel(option)}
+                  {rank > 0 ? `${rank}. ${optionLabel(option)}` : optionLabel(option)}
                 </button>
               );
             })}

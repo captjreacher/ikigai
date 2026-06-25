@@ -125,7 +125,8 @@ export type AssessmentQuestionType =
   | 'single_choice'
   | 'multi_choice'
   | 'boolean'
-  | 'scale';
+  | 'scale'
+  | 'scenario_ranking';
 
 export type AssessmentQuestionOption =
   | string
@@ -161,7 +162,7 @@ export interface CreatorQuestion {
   scoring_dimension: string | null;
   parent_question_key: string | null;
   show_when_value: string | null;
-  show_when_operator: 'equals' | 'includes';
+  show_when_operator: 'equals' | 'includes' | 'includes_any' | 'not_equals';
   options: AssessmentQuestionOption[];
   config: Record<string, unknown>;
   is_active: boolean;
@@ -227,6 +228,7 @@ export interface CreatorAssessmentInviteLink {
   creator_name: string;
   creator_email: string | null;
   notes: string | null;
+  report_tier?: ReportTier;
   status?: 'Created' | 'Sent' | 'Opened' | 'Email Verified' | 'Started' | 'Completed' | 'Expired' | 'Revoked';
   status_updated_at?: string | null;
   is_active: boolean;
@@ -280,7 +282,80 @@ export type AgencyOpportunityBand = 'High Priority' | 'Qualified' | 'Needs Devel
 export type AgencyPriority = 'low' | 'medium' | 'high';
 export type PremiumReportStatus = 'not_started' | 'available' | 'purchased' | 'delivered';
 export type ResultConfidenceLabel = 'Low' | 'Moderate' | 'High';
-export type ReportTier = 'free' | 'premium';
+export type ReportTier = 'free' | 'premium' | 'agency';
+
+export type AssessmentV2Section =
+  | 'Identity'
+  | 'Positioning'
+  | 'Audience'
+  | 'Content Engine'
+  | 'Commercial Readiness'
+  | 'Growth Potential'
+  | 'Future Vision';
+
+export type EvidenceDimension =
+  | 'identity'
+  | 'positioning'
+  | 'audience'
+  | 'content_engine'
+  | 'commercial_readiness'
+  | 'growth_potential'
+  | 'future_vision'
+  | 'confidence'
+  | 'boundaries'
+  | 'archetype_validation';
+
+export type CreatorTrait =
+  | 'visibility_comfort'
+  | 'social_energy'
+  | 'authenticity'
+  | 'emotional_familiarity'
+  | 'trust_building'
+  | 'body_confidence'
+  | 'routine_discipline'
+  | 'visual_discipline'
+  | 'monetisation_fit'
+  | 'positioning_clarity'
+  | 'fan_connection'
+  | 'coachability'
+  | 'risk_awareness';
+
+export interface AssessmentEvidence {
+  id: string;
+  source_question_key: string;
+  response_key: string;
+  section: AssessmentV2Section;
+  dimension: EvidenceDimension;
+  value: string | number | boolean | string[];
+  strength: number;
+  polarity: 'positive' | 'negative' | 'neutral';
+  confidence: number;
+  validates_archetype?: string;
+  tags: string[];
+}
+
+export interface TraitWeight {
+  trait: CreatorTrait;
+  weight: number;
+  evidence_ids: string[];
+  rationale: string;
+}
+
+export interface ArchetypeFit {
+  archetype: string;
+  fit_score: number;
+  confidence: number;
+  selected_by_creator: boolean;
+  validation_status: 'selected_only' | 'validated' | 'contradicted' | 'inferred';
+  supporting_evidence_ids: string[];
+  contradicting_evidence_ids: string[];
+}
+
+export interface ConfidenceScore {
+  score: number;
+  label: ResultConfidenceLabel;
+  drivers: string[];
+}
 
 export interface CreatorDnaProfile {
   id: string;
@@ -382,6 +457,15 @@ export interface ReportData {
   premium_report_available: boolean;
   premium_report_generated: boolean;
   premium_report_status: PremiumReportStatus;
+}
+
+export interface CreatorIntelligenceResult {
+  evidence: AssessmentEvidence[];
+  traits: TraitWeight[];
+  archetype_fits: ArchetypeFit[];
+  confidence: ConfidenceScore;
+  creator_dna: Omit<CreatorDnaProfile, 'id' | 'created_at'>;
+  report: ReportData;
 }
 
 export interface CreatorReport {

@@ -25,9 +25,10 @@ import type {
   CreatorQuestion,
   AssessmentQuestionType,
   ReportData,
+  ReportTier,
 } from '@/types/creator';
 import { scoreAssessment, generateReportSlug } from './scoring';
-import { generateCreatorDnaProfile } from './creator-dna';
+import { createCreatorIntelligenceResult } from './creator-intelligence';
 
 // ── Assessment Submission (public) ──
 
@@ -38,7 +39,7 @@ type TemplateQuestionRow = CreatorAssessmentTemplateQuestion & {
 type TemplateQuestionJoinRow = Omit<CreatorAssessmentTemplateQuestion, 'question'>;
 type TemplateItemRow = Omit<CreatorAssessmentTemplateItem, 'question'>;
 type BranchRuleRow = CreatorAssessmentBranchRule;
-type AssessmentInviteContext = Pick<CreatorAssessmentInviteLink, 'id' | 'invite_code' | 'creator_name'>;
+type AssessmentInviteContext = Pick<CreatorAssessmentInviteLink, 'id' | 'invite_code' | 'creator_name' | 'report_tier'>;
 
 type AssessmentInviteCreatorInput = {
   creatorProfileId?: string | null;
@@ -517,7 +518,8 @@ export async function setAssessmentInviteStatus(
 export async function submitAssessment(
   responses: AssessmentResponses,
   template?: CreatorAssessmentRuntimeTemplate | null,
-  invite?: AssessmentInviteContext | null
+  invite?: AssessmentInviteContext | null,
+  options: { reportTier?: ReportTier } = {}
 ): Promise<{
   profile: CreatorProfile;
   assessment: CreatorAssessment;
@@ -529,7 +531,7 @@ export async function submitAssessment(
     throw new Error('Audience target is required');
   }
 
-  const result = scoreAssessment(responses);
+  const baselineResult = scoreAssessment(responses);
   const slug = generateReportSlug(responses.full_name);
   const runtimeTemplate = template ?? await getDefaultAssessmentTemplate();
   const includedQuestions = (runtimeTemplate?.questions ?? []).filter(q => q.is_included);
@@ -560,18 +562,18 @@ export async function submitAssessment(
     city: normalizeNullableText(responses.city),
     country: normalizeNullableText(responses.country),
     status: 'Completed',
-    archetype: result.archetype,
-    creator_dna_score: result.scores.creator_dna,
-    brand_clarity_score: result.scores.brand_clarity,
-    monetisation_score: result.scores.monetisation,
-    consistency_score: result.scores.consistency,
-    agency_opportunity_score: result.scores.agency_opportunity,
-    management_readiness: result.management_readiness,
+    archetype: baselineResult.archetype,
+    creator_dna_score: baselineResult.scores.creator_dna,
+    brand_clarity_score: baselineResult.scores.brand_clarity,
+    monetisation_score: baselineResult.scores.monetisation,
+    consistency_score: baselineResult.scores.consistency,
+    agency_opportunity_score: baselineResult.scores.agency_opportunity,
+    management_readiness: baselineResult.management_readiness,
     audience_strategy: responses.audience_target,
-    recommended_pricing_model: result.pricing_strategy,
-    top_vertical_1: result.top_verticals[0]?.name ?? null,
-    top_vertical_2: result.top_verticals[1]?.name ?? null,
-    top_vertical_3: result.top_verticals[2]?.name ?? null,
+    recommended_pricing_model: baselineResult.pricing_strategy,
+    top_vertical_1: baselineResult.top_verticals[0]?.name ?? null,
+    top_vertical_2: baselineResult.top_verticals[1]?.name ?? null,
+    top_vertical_3: baselineResult.top_verticals[2]?.name ?? null,
     mailing_list_opt_out: responses.mailing_list_opt_out,
     consent_to_contact: consentToContact,
     consent_at: consentToContact ? new Date().toISOString() : null,
@@ -591,17 +593,24 @@ export async function submitAssessment(
       p_answers: responses,
       p_respondent: respondent,
       p_assessment_snapshot: assessmentSnapshot,
-      p_creator_dna_score: result.scores.creator_dna,
-      p_brand_clarity_score: result.scores.brand_clarity,
-      p_monetisation_score: result.scores.monetisation,
-      p_consistency_score: result.scores.consistency,
-      p_agency_opportunity_score: result.scores.agency_opportunity,
+      p_creator_dna_score: baselineResult.scores.creator_dna,
+      p_brand_clarity_score: baselineResult.scores.brand_clarity,
+      p_monetisation_score: baselineResult.scores.monetisation,
+      p_consistency_score: baselineResult.scores.consistency,
+      p_agency_opportunity_score: baselineResult.scores.agency_opportunity,
     });
 
   if (assessmentErr) throw new Error(`Failed to save assessment: ${assessmentErr.message}`);
 
-  // 4. Generate Creator DNA profile
-  const dnaProfileInput = generateCreatorDnaProfile(profileId, assessment.id, responses);
+  // 4. Generate Creator Intelligence and canonical Creator DNA profile
+  const intelligence = createCreatorIntelligenceResult({
+    creatorProfileId: profileId,
+    assessmentId: assessment.id,
+    responses,
+    questions: includedQuestions,
+    reportTier: options.reportTier ?? 'free',
+  });
+  const dnaProfileInput = intelligence.creator_dna;
   const { data: dnaProfile, error: dnaProfileErr } = await supabase
     .from('creator_dna_profiles')
     .insert({
@@ -625,38 +634,8 @@ export async function submitAssessment(
 
   if (dnaProfileErr) throw new Error(`Failed to save DNA profile: ${dnaProfileErr.message}`);
 
-  // 5. Create report
-  const reportData: ReportData = {
-    archetype: result.archetype,
-    archetype_description: result.archetype_description,
-    archetype_strengths: result.archetype_strengths,
-    archetype_risks: result.archetype_risks,
-    archetype_growth: result.archetype_growth,
-    scores: result.scores,
-    top_verticals: result.top_verticals,
-    classification_confidence: result.classification_confidence,
-    result_confidence: result.result_confidence,
-    pricing_strategy: result.pricing_strategy,
-    winning_10_framework: result.winning_10_framework,
-    growth_strategy: result.growth_strategy,
-    tech_stack: result.tech_stack,
-    management_readiness: result.management_readiness,
-    day_90_plan: result.day_90_plan,
-    executive_summary: result.executive_summary,
-    score_interpretations: result.score_interpretations,
-    creator_archetype_summary: result.creator_archetype_summary,
-    recommended_actions: result.recommended_actions,
-    creator_agency_opportunity: result.creator_agency_opportunity,
-    creator_dna_profile: dnaProfileInput,
-    why_this_result: result.why_this_result,
-    internal_agency_scores: result.internal_agency_scores,
-    agency_recommendation: result.agency_recommendation,
-    report_tier: result.report_tier,
-    free_report_summary: result.free_report_summary,
-    premium_report_available: result.premium_report_available,
-    premium_report_generated: result.premium_report_generated,
-    premium_report_status: result.premium_report_status,
-  };
+  // 5. Create report as a presentation view over Creator DNA
+  const reportData: ReportData = intelligence.report;
 
   const { data: report, error: reportErr } = await supabase
     .from('creator_reports')
@@ -680,6 +659,17 @@ export async function submitAssessment(
     .update({
       latest_assessment_id: assessment.id,
       latest_report_id: report.id,
+      archetype: reportData.archetype,
+      creator_dna_score: reportData.scores.creator_dna,
+      brand_clarity_score: reportData.scores.brand_clarity,
+      monetisation_score: reportData.scores.monetisation,
+      consistency_score: reportData.scores.consistency,
+      agency_opportunity_score: reportData.scores.agency_opportunity,
+      management_readiness: reportData.management_readiness,
+      recommended_pricing_model: reportData.pricing_strategy,
+      top_vertical_1: reportData.top_verticals[0]?.name ?? null,
+      top_vertical_2: reportData.top_verticals[1]?.name ?? null,
+      top_vertical_3: reportData.top_verticals[2]?.name ?? null,
     })
     .eq('id', profileId);
 
@@ -708,7 +698,22 @@ export async function submitAssessment(
   ]);
 
   return {
-    profile: { ...profile, latest_assessment_id: assessment.id, latest_report_id: report.id },
+    profile: {
+      ...profile,
+      latest_assessment_id: assessment.id,
+      latest_report_id: report.id,
+      archetype: reportData.archetype,
+      creator_dna_score: reportData.scores.creator_dna,
+      brand_clarity_score: reportData.scores.brand_clarity,
+      monetisation_score: reportData.scores.monetisation,
+      consistency_score: reportData.scores.consistency,
+      agency_opportunity_score: reportData.scores.agency_opportunity,
+      management_readiness: reportData.management_readiness,
+      recommended_pricing_model: reportData.pricing_strategy,
+      top_vertical_1: reportData.top_verticals[0]?.name ?? null,
+      top_vertical_2: reportData.top_verticals[1]?.name ?? null,
+      top_vertical_3: reportData.top_verticals[2]?.name ?? null,
+    },
     assessment,
     report,
     dnaProfile: dnaProfile as CreatorDnaProfile,
@@ -1550,6 +1555,7 @@ export async function createAssessmentInviteLink(input: {
   modelName?: string | null;
   notes?: string | null;
   expiresAt?: string | null;
+  reportTier?: ReportTier;
 }): Promise<CreatorAssessmentInviteLink> {
   const profile = await ensureCreatorProfileForInvite({
     creatorProfileId: input.creatorProfileId,
@@ -1570,6 +1576,7 @@ export async function createAssessmentInviteLink(input: {
       creator_name: creatorName,
       creator_email: creatorEmail,
       notes: normalizeNullableText(input.notes),
+      report_tier: input.reportTier ?? 'free',
       status: 'Created',
       status_updated_at: new Date().toISOString(),
       is_active: true,

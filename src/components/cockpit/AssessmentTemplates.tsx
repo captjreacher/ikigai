@@ -31,6 +31,7 @@ import type {
   CreatorAssessmentTemplateItem,
   CreatorProfile,
   CreatorQuestion,
+  ReportTier,
 } from '@/types/creator';
 
 type DraftItem = CreatorAssessmentTemplateItem;
@@ -53,7 +54,7 @@ type QuestionForm = {
   is_active: boolean;
 };
 
-const QUESTION_TYPES: AssessmentQuestionType[] = ['short_text', 'long_text', 'single_choice', 'multi_choice', 'boolean', 'scale'];
+const QUESTION_TYPES: AssessmentQuestionType[] = ['short_text', 'long_text', 'textarea', 'single_choice', 'multi_choice', 'boolean', 'scale', 'scenario_ranking'];
 const BRANCH_ACTIONS: Array<{ value: AssessmentBranchAction; label: string }> = [
   { value: 'continue', label: 'Continue to next question' },
   { value: 'jump_question', label: 'Jump to question' },
@@ -73,6 +74,7 @@ const EMPTY_INVITE_FORM = {
   modelName: '',
   expiresAt: '',
   notes: '',
+  reportTier: 'free' as ReportTier,
 };
 const EMPTY_QUESTION_FORM: QuestionForm = {
   id: '',
@@ -521,6 +523,7 @@ export function AssessmentTemplates() {
         modelName: selectedProfile?.model_name ?? inviteForm.modelName,
         notes: inviteForm.notes || null,
         expiresAt: inviteForm.expiresAt ? new Date(inviteForm.expiresAt).toISOString() : null,
+        reportTier: inviteForm.reportTier,
       });
       const url = buildInviteUrl(template.slug, invite);
       setGeneratedInviteUrl(url);
@@ -710,7 +713,7 @@ export function AssessmentTemplates() {
       showError('Question text is required.');
       return;
     }
-    if (['single_choice', 'multi_choice'].includes(questionForm.question_type) && draftsToOptions(questionForm.options).length === 0) {
+    if (['single_choice', 'multi_choice', 'scenario_ranking'].includes(questionForm.question_type) && draftsToOptions(questionForm.options).length === 0) {
       showError('Add at least one answer option for single or multi select questions.');
       return;
     }
@@ -726,8 +729,12 @@ export function AssessmentTemplates() {
       section: questionForm.section || 'General',
       question_type: questionForm.question_type,
       scoring_dimension: questionForm.scoring_dimension || null,
-      options: ['single_choice', 'multi_choice'].includes(questionForm.question_type) ? draftsToOptions(questionForm.options) : [],
-      config: questionForm.question_type === 'scale' ? { min: questionForm.scaleMin, max: questionForm.scaleMax } : {},
+      options: ['single_choice', 'multi_choice', 'scenario_ranking'].includes(questionForm.question_type) ? draftsToOptions(questionForm.options) : [],
+      config: questionForm.question_type === 'scale'
+        ? { min: questionForm.scaleMin, max: questionForm.scaleMax }
+        : questionForm.question_type === 'scenario_ranking'
+          ? { evidence: { validationMode: 'scenario_rank' } }
+          : {},
       parent_question_key: null,
       show_when_value: null,
       show_when_operator: 'equals' as const,
@@ -1213,7 +1220,7 @@ export function AssessmentTemplates() {
   }
 
   function renderQuestionEditorDrawer() {
-    const needsOptions = ['single_choice', 'multi_choice'].includes(questionForm.question_type);
+    const needsOptions = ['single_choice', 'multi_choice', 'scenario_ranking'].includes(questionForm.question_type);
     const canSubmitQuestion = Boolean(
       questionForm.question_text.trim()
       && questionForm.question_key.trim()
@@ -1420,6 +1427,15 @@ export function AssessmentTemplates() {
                 <span>Expiry Date</span>
                 <input type="date" value={inviteForm.expiresAt} onChange={e => setInviteForm(current => ({ ...current, expiresAt: e.target.value }))} className="field-control" />
                 <span className="text-xs font-normal text-charcoal-2">Optional. Leave blank for no expiry. Created date is generated automatically.</span>
+              </label>
+              <label className="grid gap-1 text-sm font-medium text-charcoal">
+                <span>Report Tier</span>
+                <select value={inviteForm.reportTier} onChange={e => setInviteForm(current => ({ ...current, reportTier: e.target.value as ReportTier }))} className="field-control">
+                  <option value="free">Free creator report</option>
+                  <option value="premium">Premium creator report</option>
+                  <option value="agency">Agency/internal report</option>
+                </select>
+                <span className="text-xs font-normal text-charcoal-2">Agency/internal reports are for cockpit review and are not exposed as a public creator report.</span>
               </label>
               <label className="grid gap-1 text-sm font-medium text-charcoal">
                 <span>Internal Notes</span>
