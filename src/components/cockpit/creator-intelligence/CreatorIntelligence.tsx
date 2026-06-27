@@ -116,14 +116,14 @@ export function CreatorIntelligence() {
     if (!intelligence || !previewTier) return null;
     try {
       const legacy = scoreAssessment(selectedAssessment!.responses);
-      return buildReportFromCreatorDna({
-        legacy,
-        dnaProfile: intelligence.creator_dna,
-        evidence: intelligence.evidence,
-        traits: intelligence.traits,
-        confidence: intelligence.confidence,
-        reportTier: previewTier,
-      });
+return buildReportFromCreatorDna({
+  legacy,
+  dnaProfile: intelligence.creator_dna,
+  evidence: intelligence.evidence,
+  traits: intelligence.traits,
+  archetypeFits: intelligence.archetype_fits,
+  reportTier: previewTier,
+});
     } catch {
       return null;
     }

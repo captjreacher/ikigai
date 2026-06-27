@@ -4,6 +4,7 @@
 // text from the calibration module.
 
 import type {
+  ArchetypeFit,
   AssessmentEvidence,
   AssessmentResponses,
   CreatorAssessmentQuestion,

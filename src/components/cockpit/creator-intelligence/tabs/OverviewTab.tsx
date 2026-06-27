@@ -69,35 +69,48 @@ export function OverviewTab() {
         </div>
       </div>
 
-      {/* Overall Scores */}
-      <div className="md:col-span-2">
-        <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-500 mb-3">Overall Scores</h3>
-        <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
-          {[
-            ['Creator DNA', profile.creator_dna_score],
-            ['Brand Clarity', profile.brand_clarity_score],
-            ['Monetisation', profile.monetisation_score],
-            ['Consistency', profile.consistency_score],
-            ['Agency Opp.', profile.agency_opportunity_score],
-          ].map(([label, score]) => (
-            <div key={label} className="bg-surface-2 rounded-lg p-3 text-center">
-              <div
-                className={`text-xl font-bold ${
-                  (score ?? 0) >= 60
-                    ? 'text-success'
-                    : (score ?? 0) >= 40
-                      ? 'text-warn'
-                      : 'text-pink'
-                }`}
-              >
-                {score ?? '-'}
-              </div>
-              <div className="text-[10px] text-gray-500 mt-1 leading-tight">{label}</div>
-            </div>
-          ))}
-        </div>
-      </div>
+{/* Overall Scores */}
+<div className="md:col-span-2">
+  <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-500 mb-3">
+    Overall Scores
+  </h3>
 
+  <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
+    {[
+      ['Creator DNA', profile.creator_dna_score],
+      ['Brand Clarity', profile.brand_clarity_score],
+      ['Monetisation', profile.monetisation_score],
+      ['Consistency', profile.consistency_score],
+      ['Agency Opp.', profile.agency_opportunity_score],
+    ].map(([label, score]) => {
+      const numericScore = Number(score ?? 0);
+
+      return (
+        <div key={label} className="bg-surface-2 rounded-lg p-3 text-center">
+          <div
+            className={`text-xl font-bold ${
+              numericScore >= 60
+                ? 'text-success'
+                : numericScore >= 40
+                  ? 'text-warn'
+                  : 'text-pink'
+            }`}
+          >
+            {score ?? '-'}
+          </div>
+          <div className="text-[10px] text-gray-500 mt-1 leading-tight">
+            {label}
+          </div>
+        </div>
+      );
+    })}
+  </div>
+</div>
+
+      <div className="text-[10px] text-gray-500 mt-1 leading-tight">
+      </div>
+      );
+  
       {/* Primary Archetype + Top Vertical */}
       <div>
         <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-500 mb-3">Primary Archetype</h3>
